@@ -40,4 +40,5 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False):
         plot_frequencies=plot_frequencies
     )
 
-    runner.print_summary()
+    # testing git
+    runner.print_summary() 
