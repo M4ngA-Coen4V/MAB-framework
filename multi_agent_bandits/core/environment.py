@@ -6,7 +6,7 @@ class Environment:
     Extendable multi-agent bandit environment.
     Agents choose arms -> collisions are handled -> generate rewards.
     """
-    def __init__(self, n_agents, arms, collision_policy=linear_share):
+    def __init__(self, n_agents, arms, collision_policy):
         self.n_agents = n_agents
         self.arms = arms
         self.n_arms = len(arms)

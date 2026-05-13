@@ -1,6 +1,7 @@
 from multi_agent_bandits.core.environment import Environment
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 from multi_agent_bandits.core.arm import Arm
+from multi_agent_bandits.core.reward_sharing import linear_share, zero_on_collision, winner_takes_all
 
 from multi_agent_bandits.strategies.ucb_baseline import UCB_BaselineAgent
 from multi_agent_bandits.strategies.random import RandomAgent
@@ -19,7 +20,8 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False):
 
     env = Environment(
         n_agents=n_agents,
-        arms=arms
+        arms=arms,
+        collision_policy=zero_on_collision
     )
 
     agents = [
