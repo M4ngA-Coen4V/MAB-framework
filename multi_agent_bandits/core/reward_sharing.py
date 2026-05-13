@@ -14,3 +14,14 @@ def winner_takes_all(raw_reward, n_agents):
     rewards[winner] = raw_reward
     return rewards
 
+def custom_100_20_10_share(raw_reward, n_agents):
+    """First agent gets 100%, second gets 20%, third gets 10% (if there are that many agents)."""
+    if n_agents == 1:
+        return [raw_reward]
+    elif n_agents == 2:
+        return [raw_reward * 0.2] * 2
+    elif n_agents >= 3:
+        return [raw_reward * 0.1] * 3
+    else:
+        raise ValueError("Invalid number of agents: {}".format(n_agents))
+    
