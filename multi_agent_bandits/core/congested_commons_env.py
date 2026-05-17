@@ -15,7 +15,7 @@ class CongestedCommonsEnvironment(Environment):
 	- Dead agents do not choose arms, do not cause collisions, and receive 0 reward.
 	"""
 
-	def __init__(self, n_agents=3, arms=None, death_threshold=0.0, initial_wealth=0.0, step_cost=0.0):
+	def __init__(self, n_agents=3, arms=None, death_threshold=0.0, initial_wealth=0.0, step_cost=0.0, governor=None):
 		# Build default arms if none provided
 		if arms is None:
 			arms = [
@@ -37,6 +37,17 @@ class CongestedCommonsEnvironment(Environment):
 		self.wealth_history = []  # snapshot of wealth after each timestep
 		self.death_steps = [None] * n_agents  # timestep when agent first died
 		self.current_step = 0
+		self.governor = governor
+		self.governor_reward_history = []
+
+	def _build_governor_observation(self, choices):
+		"""Build a fixed-size observation for the governor.
+
+		Choices are encoded as integers with -1 for dead / inactive agents.
+		Wealth values are appended directly so the governor sees the current state.
+		"""
+		choice_obs = [choice if choice is not None else -1 for choice in choices]
+		return choice_obs + list(self.agent_wealths)
 
 	def step(self, agents):
 		"""
@@ -68,7 +79,7 @@ class CongestedCommonsEnvironment(Environment):
 			collisions.setdefault(chosen_arm, []).append(agent_idx)
 
 		# Prepare reward container (default 0 for everyone)
-		rewards = [0.0] * len(agents)
+		raw_rewards = [0.0] * len(agents)
 
 		# For each arm that was pulled by one or more alive agents,
 		# sample a raw reward and split it using the imported congestion policy.
@@ -80,34 +91,57 @@ class CongestedCommonsEnvironment(Environment):
 
 			# Distribute computed shares back to the correct agents
 			for share, a_id in zip(shares, agent_ids):
-				rewards[a_id] = share
+				raw_rewards[a_id] = share
+
+		final_rewards = list(raw_rewards)
+		governor_reward = 0.0
+
+		if self.governor and any(self.is_alive):
+			observation = self._build_governor_observation(choices)
+			raw_adjustments = self.governor.choose_action(observation)
+			adjustments = self.governor._zero_sum_projection(raw_adjustments, self.is_alive)
+			for agent_idx, adjustment in enumerate(adjustments):
+				final_rewards[agent_idx] += adjustment
+		else:
+			adjustments = [0.0] * len(agents)
 
 		# Increment the internal timestep counter for death tracking
 		self.current_step += 1
+
+		# Track deaths that occur during this timestep
+		death_count = 0
 
 		# Update wealths and apply death checks for alive agents
 		for agent_idx in range(len(agents)):
 			if not self.is_alive[agent_idx]:
 				# Ensure dead agents have zero reward and do not pay costs
-				rewards[agent_idx] = 0.0
+				final_rewards[agent_idx] = 0.0
 				continue
 
 			# Apply reward and scarcity step cost for alive agents
-			self.agent_wealths[agent_idx] += rewards[agent_idx] - self.step_cost
+			self.agent_wealths[agent_idx] += final_rewards[agent_idx] - self.step_cost
 
 			# If wealth falls below threshold, agent dies and no longer
 			# participates from the next timestep onwards.
 			if self.agent_wealths[agent_idx] < self.death_threshold:
 				self.is_alive[agent_idx] = False
 				self.death_steps[agent_idx] = self.current_step
-				rewards[agent_idx] = 0.0
+				final_rewards[agent_idx] = 0.0
+				death_count += 1
 
 		# Record the wealth snapshot after this timestep has finished
 		self.wealth_history.append(list(self.agent_wealths))
 
-		# Ensure each agent receives an update call (alive or dead)
-		for agent_idx, agent in enumerate(agents):
-			agent.update(rewards[agent_idx])
+		# Calculate governor reward after redistribution and death penalties
+		if self.governor:
+			governor_reward = self.governor.compute_governor_reward(final_rewards, death_count)
+			self.governor_reward_history.append(governor_reward)
+			if hasattr(self.governor, "record_step"):
+				self.governor.record_step(observation, raw_adjustments, adjustments, governor_reward, death_count=death_count)
+		# Update governor training signal if available
+		if self.governor and self.governor.last_action is not None:
+			next_observation = self._build_governor_observation(choices)
+			self.governor.update(observation, raw_adjustments, governor_reward, next_observation, done=False)
 
-		return choices, rewards
+		return choices, final_rewards
 
