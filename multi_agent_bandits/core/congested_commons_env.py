@@ -15,7 +15,7 @@ class CongestedCommonsEnvironment(Environment):
 	- Dead agents do not choose arms, do not cause collisions, and receive 0 reward.
 	"""
 
-	def __init__(self, n_agents=3, arms=None, death_threshold=0.0, initial_wealth=0.0):
+	def __init__(self, n_agents=3, arms=None, death_threshold=0.0, initial_wealth=0.0, step_cost=0.0):
 		# Build default arms if none provided
 		if arms is None:
 			arms = [
@@ -31,8 +31,12 @@ class CongestedCommonsEnvironment(Environment):
 
 		# Parameters and runtime state
 		self.death_threshold = death_threshold
+		self.step_cost = step_cost
 		self.agent_wealths = [initial_wealth] * n_agents  # accumulated wealth per agent
 		self.is_alive = [True] * n_agents  # alive/dead flags per agent
+		self.wealth_history = []  # snapshot of wealth after each timestep
+		self.death_steps = [None] * n_agents  # timestep when agent first died
+		self.current_step = 0
 
 	def step(self, agents):
 		"""
@@ -78,22 +82,28 @@ class CongestedCommonsEnvironment(Environment):
 			for share, a_id in zip(shares, agent_ids):
 				rewards[a_id] = share
 
+		# Increment the internal timestep counter for death tracking
+		self.current_step += 1
+
 		# Update wealths and apply death checks for alive agents
 		for agent_idx in range(len(agents)):
 			if not self.is_alive[agent_idx]:
-				# Ensure dead agents have zero reward
+				# Ensure dead agents have zero reward and do not pay costs
 				rewards[agent_idx] = 0.0
 				continue
 
-			# Accumulate wealth for alive agents
-			self.agent_wealths[agent_idx] += rewards[agent_idx]
+			# Apply reward and scarcity step cost for alive agents
+			self.agent_wealths[agent_idx] += rewards[agent_idx] - self.step_cost
 
 			# If wealth falls below threshold, agent dies and no longer
-			# participates from the next timestep onwards. We also zero
-			# their reward immediately to reflect death.
+			# participates from the next timestep onwards.
 			if self.agent_wealths[agent_idx] < self.death_threshold:
 				self.is_alive[agent_idx] = False
+				self.death_steps[agent_idx] = self.current_step
 				rewards[agent_idx] = 0.0
+
+		# Record the wealth snapshot after this timestep has finished
+		self.wealth_history.append(list(self.agent_wealths))
 
 		# Ensure each agent receives an update call (alive or dead)
 		for agent_idx, agent in enumerate(agents):

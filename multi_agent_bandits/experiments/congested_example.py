@@ -4,7 +4,7 @@ from multi_agent_bandits.core.congested_commons_env import CongestedCommonsEnvir
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 
-def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, death_threshold=0.0, initial_wealth=0.0):
+def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, death_threshold=0.0, initial_wealth=50.0, step_cost=1.5):
     """Run the congested commons baseline experiment.
 
     Args:
@@ -14,6 +14,7 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, 
         plot_frequencies (bool): whether to show arm frequency plots.
         death_threshold (float): wealth threshold below which agents die.
         initial_wealth (float): starting wealth for each agent.
+        step_cost (float): wealth cost paid by each alive agent every timestep.
     """
 
     # Number of agents in the baseline scenario
@@ -21,7 +22,12 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, 
 
     # Instantiate the congested commons environment with defaults.
     # This uses default arms means [10, 2, 1] unless 'arms' is provided.
-    env = CongestedCommonsEnvironment(n_agents=n_agents, death_threshold=death_threshold, initial_wealth=initial_wealth)
+    env = CongestedCommonsEnvironment(
+        n_agents=n_agents,
+        death_threshold=death_threshold,
+        initial_wealth=initial_wealth,
+        step_cost=step_cost,
+    )
 
     # Create agents (default: epsilon-greedy). Agents will learn from rewards
     # delivered by the environment via their `update()` method.
@@ -41,4 +47,26 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, 
     for i, (wealth, alive) in enumerate(zip(env.agent_wealths, env.is_alive)):
         status = "alive" if alive else "dead"
         print(f"  Agent {i} - wealth: {wealth:.2f} - {status}")
+
+    # Calculate and print total social wealth
+    total_combined_wealth = sum(env.agent_wealths)
+    print("----------------------------")
+    print(f"Total Combined Wealth (All Agents): {total_combined_wealth:.2f}")
+
+    # Calculate and print total rewards across all agents
+    total_combined_reward = sum(runner.total_rewards)
+    print("----------------------------")
+    print(f"Total Combined Reward (All Agents): {total_combined_reward:.2f}")
+
+
+    # Print each agent's survival duration based on death step tracking
+    print("Agent survival duration:")
+    for i, death_step in enumerate(env.death_steps):
+        if death_step is None:
+            print(f"  Agent {i} survived all {steps} steps")
+        else:
+            print(f"  Agent {i} died at step {death_step}")
+
+
+
 
