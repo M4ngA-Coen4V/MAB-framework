@@ -51,7 +51,8 @@ class CongestedCommonsEnvironment(Environment):
 
 	def step(self, agents):
 		"""
-		Run a single timestep for the environment.
+		Run a single timestep for the environment:
+		[Phase 1: Bandit Choices] ──► [Phase 2: Harvest & Collision] ──► [Phase 3: Governor Tax/Subsidy] ──► [Phase 4: Economic Accounting]
 
 		Key points:
 		- Dead agents do not make choices and do not contribute to collisions.
@@ -63,6 +64,7 @@ class CongestedCommonsEnvironment(Environment):
 		  are still passed through `update` with 0).
 		"""
 
+		#[Phase 1: Bandit Choices]
 		# Record choices; dead agents remain `None` here.
 		choices = [None] * len(agents)
 
@@ -78,6 +80,8 @@ class CongestedCommonsEnvironment(Environment):
 			choices[agent_idx] = chosen_arm
 			collisions.setdefault(chosen_arm, []).append(agent_idx)
 
+		#[Phase 2: Harvest & Collision]
+		
 		# Prepare reward container (default 0 for everyone)
 		raw_rewards = [0.0] * len(agents)
 
@@ -94,20 +98,33 @@ class CongestedCommonsEnvironment(Environment):
 				raw_rewards[a_id] = share
 
 		final_rewards = list(raw_rewards)
+		
+		#[Phase 3: Governor Tax/Subsidy]
+
+		# Initialize a blank variable to calculate the governor's grade later
 		governor_reward = 0.0
 
+		# If a governor exists, and at least one agent is alive, run intervention
 		if self.governor and any(self.is_alive):
+			# Step A: Compile the state snapshot [choices + wealths]
 			observation = self._build_governor_observation(choices)
+			
+			# Step B: The governor samples its raw continuous policy adjustments
 			raw_adjustments = self.governor.choose_action(observation)
+			
+			# Step C: Force those numbers to sum perfectly to 0.0 among living agents
 			adjustments = self.governor._zero_sum_projection(raw_adjustments, self.is_alive)
+			
+			# Step D: Directly alter the final payout scores!
 			for agent_idx, adjustment in enumerate(adjustments):
 				final_rewards[agent_idx] += adjustment
 		else:
 			adjustments = [0.0] * len(agents)
 
+		#[Phase 4: Economic Accounting]
+
 		# Increment the internal timestep counter for death tracking
 		self.current_step += 1
-
 		# Track deaths that occur during this timestep
 		death_count = 0
 
