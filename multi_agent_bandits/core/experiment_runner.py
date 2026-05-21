@@ -22,6 +22,7 @@ class ExperimentRunner:
         for i, arm in enumerate(self.env.arms):
             print(f"  Arm {i}: mean={arm.mean}, sd={arm.sd}")
         print(f"Collision policy: {self.env.collision_policy.__name__}")
+        print(f"Governor: {self.env.governor.__class__.__name__}")
         print(f"Number of agents: {len(self.agents)}")
         print("Agents:")
         for i, ag in enumerate(self.agents):
@@ -72,6 +73,7 @@ class ExperimentRunner:
                 writer.writerow([f"arm_{i}_mean", arm.mean])
                 writer.writerow([f"arm_{i}_sd", arm.sd])
             writer.writerow(["collision_policy", self.env.collision_policy.__name__])
+            writer.writerow(["governor", self.env.governor.__class__.__name__])
             writer.writerow(["n_agents", len(self.agents)])
             for i, ag in enumerate(self.agents):
                 writer.writerow([f"agent_{i}_name", ag.name])
@@ -85,6 +87,7 @@ class ExperimentRunner:
             for i, arm in enumerate(self.env.arms):
                 f.write(f"  Arm {i}: mean={arm.mean}, sd={arm.sd}\n")
             f.write(f"Collision policy: {self.env.collision_policy.__name__}\n")
+            f.write(f"Governor: {self.env.governor.__class__.__name__}\n")
             f.write(f"Number of agents: {len(self.agents)}\n")
             f.write("Agents:\n")
             for i, ag in enumerate(self.agents):
