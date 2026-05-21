@@ -39,6 +39,7 @@ class CongestedCommonsEnvironment(Environment):
 		self.current_step = 0
 		self.governor = governor
 		self.governor_reward_history = []
+		self.initial_wealth = initial_wealth
 
 	def _build_governor_observation(self, choices):
 		"""Build a fixed-size observation for the governor.

@@ -23,6 +23,9 @@ class ExperimentRunner:
             print(f"  Arm {i}: mean={arm.mean}, sd={arm.sd}")
         print(f"Collision policy: {self.env.collision_policy.__name__}")
         print(f"Governor: {self.env.governor.__class__.__name__}")
+        print(f"Death threshold: {self.env.death_threshold}")
+        print(f"Initial wealth: {self.env.initial_wealth}")
+        print(f"Step cost: {self.env.step_cost}")
         print(f"Number of agents: {len(self.agents)}")
         print("Agents:")
         for i, ag in enumerate(self.agents):
@@ -78,6 +81,9 @@ class ExperimentRunner:
                 writer.writerow([f"arm_{i}_sd", arm.sd])
             writer.writerow(["collision_policy", self.env.collision_policy.__name__])
             writer.writerow(["governor", self.env.governor.__class__.__name__])
+            writer.writerow(["death_threshold", self.env.death_threshold])
+            writer.writerow(["initial_wealth", self.env.initial_wealth])
+            writer.writerow(["step_cost", self.env.step_cost])
             writer.writerow(["n_agents", len(self.agents)])
             for i, ag in enumerate(self.agents):
                 writer.writerow([f"agent_{i}_name", ag.name])
@@ -92,6 +98,9 @@ class ExperimentRunner:
                 f.write(f"  Arm {i}: mean={arm.mean}, sd={arm.sd}\n")
             f.write(f"Collision policy: {self.env.collision_policy.__name__}\n")
             f.write(f"Governor: {self.env.governor.__class__.__name__}\n")
+            f.write(f"Death threshold: {self.env.death_threshold}\n")
+            f.write(f"Initial wealth: {self.env.initial_wealth}\n")
+            f.write(f"Step cost: {self.env.step_cost}\n")
             f.write(f"Number of agents: {len(self.agents)}\n")
             f.write("Agents:\n")
             for i, ag in enumerate(self.agents):
