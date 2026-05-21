@@ -41,6 +41,10 @@ class ExperimentRunner:
 
         if self.save_dir:
             self.save_logs()
+            self._save_governor_history_csv()
+
+        # Handle runtime analytical summaries
+        self.print_summary()
 
         if plot_rewards:
             self.plot_reward_trajectories()
@@ -97,11 +101,71 @@ class ExperimentRunner:
                 f.write(f"  Agent {i} ({self.agents[i].name}): {total:.2f}\n")
             f.write("============================\n")
 
+    def _save_governor_history_csv(self):
+        """Save a CSV file containing all governor debug steps directly to save_dir."""
+        gov = self.env.governor
+        if not gov or not hasattr(gov, "history") or not gov.history:
+            return
+
+        file_path = os.path.join(self.save_dir, "governor_history.csv")
+        with open(file_path, mode="w", newline="", encoding="utf-8") as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(["step", "observation", "raw_adjustments", "adjusted", "reward", "death_count"])
+
+            for step_idx, step in enumerate(gov.history, start=1):
+                writer.writerow([
+                    step_idx,
+                    repr(step["observation"]),
+                    repr(step["raw_adjustments"]),
+                    repr(step["adjustments"]),
+                    f"{step['reward']:.6f}",
+                    step["death_count"],
+                ])
+        print(f"Saved governor history CSV to: {file_path}")
+
     def print_summary(self):
-        print("Experiment Summary")
+        print("==== Experiment Summary ====")
         for i, total in enumerate(self.total_rewards):
             print(f"Agent {i} ({self.agents[i].name}) total reward: {total:.2f}")
         print("--------------")
+        
+        print("Agent wealths and alive status:")
+        for i, (wealth, alive) in enumerate(zip(self.env.agent_wealths, self.env.is_alive)):
+            status = "alive" if alive else "dead"
+            print(f"  Agent {i} - wealth: {wealth:.2f} - {status}")
+        print("----------------------------")
+        
+        total_combined_wealth = sum(self.env.agent_wealths)
+        print(f"Total Combined Wealth (All Agents): {total_combined_wealth:.2f}")
+        print("----------------------------")
+        
+        total_combined_reward = sum(self.total_rewards)
+        print(f"Total Combined Reward (All Agents): {total_combined_reward:.2f}")
+
+        # Governor debug summary display
+        gov = self.env.governor
+        if gov and hasattr(gov, "history") and gov.history:
+            print("----------------------------")
+            print("Governor debug summary:")
+            if hasattr(gov, "means"):
+                print(f"  Policy means: {[f'{m:.4f}' for m in gov.means]}")
+            print(f"  Total governor steps recorded: {len(gov.history)}")
+
+            for step_idx, step in enumerate(gov.history[:5], start=1):
+                print(f"  Step {step_idx}: raw={step['raw_adjustments']}, adjusted={step['adjustments']}, reward={step['reward']:.2f}, deaths={step['death_count']}")
+
+            avg_adjustments = [sum(step['adjustments'][i] for step in gov.history) / len(gov.history)
+                               for i in range(len(self.agents))]
+            print(f"  Avg governor adjustments: {[f'{a:.4f}' for a in avg_adjustments]}")
+
+        print("----------------------------")
+        print("Agent survival duration:")
+        for i, death_step in enumerate(self.env.death_steps):
+            if death_step is None:
+                print(f"  Agent {i} survived all {self.T} steps")
+            else:
+                print(f"  Agent {i} died at step {death_step}")
+        print("============================")
 
     def plot_reward_trajectories(self):
         import numpy as np
