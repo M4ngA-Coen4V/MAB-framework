@@ -177,3 +177,82 @@ class LearningGovernorAI:
         
         # Penalize severely if the governor's actions allowed agents to cross the death threshold
         return total_reward - death_penalty * death_count
+    
+
+
+
+
+class CommunistGovernor:
+    """
+    An omniscient, non-learning baseline governor.
+    
+    This governor automatically calculates a perfect egalitarian split 
+    of the gathered resources. It intercepts the raw rewards, sums them up, 
+    and issues taxes and subsidies so that every single living agent receives 
+    an identical final payout.
+    """
+
+    def __init__(self, n_agents=3):
+        """
+        Initialize the Communist Governor baseline.
+        """
+        self.n_agents = n_agents
+        
+        # This property acts as a marker for the environment file.
+        # Setting it to None tells the environment that this governor 
+        # doesn't use policy gradient adjustments and should bypass .update()
+        self.last_action = None 
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        """
+        Calculates the tax/subsidy adjustment matrix needed to equalize wealth gains.
+
+        Args:
+            observation (list): Processed state vector (ignored by this governor).
+            choices (list): Raw choices made by the bandits this turn (ignored).
+            wealths (list): Current financial ledger levels for each agent (ignored).
+            raw_rewards (list): Freshly harvested reward payouts before taxes.
+            alive_mask (list of bool): Boolean flags indicating who is alive.
+
+        Returns:
+            list: Finished zero-sum continuous adjustment vector of size n_agents.
+        """
+        # 1. Count how many agents are currently alive
+        num_alive = 0
+        for alive in alive_mask:
+            if alive:
+                num_alive += 1
+
+        # If everyone has starved to death, no economy happens
+        if num_alive == 0:
+            return [0.0] * self.n_agents
+
+        # 2. Sum up all the raw wealth harvested by the alive agents this round
+        total_harvest = 0.0
+        for idx, reward in enumerate(raw_rewards):
+            if alive_mask[idx]:
+                total_harvest += reward
+
+        # 3. Calculate the equal split target value
+        equal_share = total_harvest / num_alive
+
+        # 4. Generate the adjustments vector: (Equal Share Target - Their Raw Harvest)
+        adjustments = []
+        for idx, reward in enumerate(raw_rewards):
+            if alive_mask[idx]:
+                # If an agent harvested more than the equal share, this becomes negative (tax).
+                # If they harvested less, it becomes positive (subsidy).
+                tax_or_subsidy = equal_share - reward
+                adjustments.append(tax_or_subsidy)
+            else:
+                # Dead agents are completely isolated from the redistributive pool
+                adjustments.append(0.0)
+
+        return adjustments
+
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        """
+        Evaluates performance to keep the historical metrics tracking unbroken.
+        """
+        # Total productivity across the entire pool
+        return sum(final_rewards)
