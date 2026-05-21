@@ -13,6 +13,7 @@ def main():
     run_parser.add_argument("--save", type=str, default=None)
     run_parser.add_argument("--plot-rewards", action="store_true")
     run_parser.add_argument("--plot-frequencies", action="store_true")
+    run_parser.add_argument("--plot-beliefs", action="store_true")
 
     args = parser.parse_args()
 
@@ -39,7 +40,8 @@ def main():
             kwargs["plot_rewards"] = True
         if args.plot_frequencies:
             kwargs["plot_frequencies"] = True
-
+        if args.plot_beliefs:
+            kwargs["plot_beliefs"] = True
         try:
             mod.main(**kwargs)
         except TypeError:

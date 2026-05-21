@@ -9,6 +9,7 @@ class ExperimentRunner:
         self.T = timestep_limit
         self.choices_log = []
         self.rewards_log = []
+        self.values_log = []
         self.total_rewards = [0.0] * len(agents)
         self.save_dir = save_dir
         if save_dir:
@@ -32,7 +33,7 @@ class ExperimentRunner:
             print(f"  - Agent {i}: {ag.name}")
         print("==========================")
 
-    def run(self, plot_rewards=False, plot_frequencies=False):
+    def run(self, plot_rewards=False, plot_frequencies=False, plot_beliefs=False):
         self.print_experiment_info()
 
         for t in range(self.T):
@@ -41,6 +42,16 @@ class ExperimentRunner:
             self.rewards_log.append(rewards)
             for i, r in enumerate(rewards):
                 self.total_rewards[i] += r
+            
+            # Extract a snapshot copy of self.values for every agent at this step
+            # Iterate through the elements of the list
+            step_values_snapshot = []
+            for agent in self.agents:
+                # Access the 'values' attribute belonging to the individual agent object
+                raw_values = [float(v) for v in agent.values]
+                step_values_snapshot.append(raw_values)
+                
+            self.values_log.append(step_values_snapshot)
 
         if self.save_dir:
             self.save_logs()
@@ -54,6 +65,9 @@ class ExperimentRunner:
 
         if plot_frequencies:
             self.plot_arm_frequencies()
+
+        if plot_beliefs:
+            self.plot_agent_beliefs()
 
         return self.choices_log, self.rewards_log
 
@@ -175,6 +189,7 @@ class ExperimentRunner:
             else:
                 print(f"  Agent {i} died at step {death_step}")
         print("============================")
+        #print(dir(self.agents))
 
     def plot_reward_trajectories(self):
         import numpy as np
@@ -206,5 +221,41 @@ class ExperimentRunner:
             ax.set_ylabel("Count")
             ax.set_title(f"Arm frequencies — {self.agents[i].name}")
         axes[-1].set_xlabel("Arm")
+        plt.tight_layout()
+        plt.show()
+
+    def plot_agent_beliefs(self):
+        """Plot the internal expected values (beliefs) of all arms for each agent over time."""
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        if not self.values_log:
+            print("No internal agent values logged to plot.")
+            return
+
+        steps = np.arange(len(self.values_log)) + 1
+        n_agents = len(self.agents)
+        n_arms = self.env.n_arms
+        
+        # Convert log to array shape: (Timesteps, Agents, Arms)
+        values_data = np.array(self.values_log)
+
+        fig, axes = plt.subplots(n_agents, 1, figsize=(10, 2.5 * n_agents), sharex=True)
+        if n_agents == 1:
+            axes = [axes]
+
+        for i in range(n_agents):
+            ax = axes[i]
+            for arm_idx in range(n_arms):
+                # Isolate historical values recorded by Agent i for Arm arm_idx
+                beliefs = values_data[:, i, arm_idx]
+                ax.plot(steps, beliefs, label=f"Arm {arm_idx} Est.")
+            
+            ax.set_title(f"Internal Value Estimates — Agent {i} ({self.agents[i].name})")
+            ax.set_ylabel("Expected Reward")
+            ax.grid(True, linestyle=":", alpha=0.6)
+            ax.legend(loc="upper right")
+
+        axes[-1].set_xlabel("Simulation Timestep")
         plt.tight_layout()
         plt.show()

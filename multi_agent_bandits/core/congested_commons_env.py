@@ -1,3 +1,4 @@
+from multi_agent_bandits.core import agent
 from multi_agent_bandits.core.environment import Environment
 from multi_agent_bandits.core.arm import Arm
 from multi_agent_bandits.core.reward_sharing import custom_100_20_10_share
@@ -183,6 +184,11 @@ class CongestedCommonsEnvironment(Environment):
                 next_observation, 
                 done=False
             )
+		
+		# Finally, call agent.update() for every agent so alive agents learn from their final rewards
+		for agent_idx, agent in enumerate(agents):
+            # Pass the final post-tax/post-subsidy reward to the agent
+			agent.update(final_rewards[agent_idx]) 
 
 		return choices, final_rewards
 

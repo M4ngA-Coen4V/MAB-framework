@@ -10,7 +10,7 @@ from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 
 
-def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, death_threshold=0.0, initial_wealth=200.0, step_cost=2.5):
+def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, plot_beliefs=False, death_threshold=0.0, initial_wealth=200.0, step_cost=2.5):
     """Run the congested commons baseline experiment.
 
     Args:
@@ -18,6 +18,7 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, 
         save_dir (str|None): directory to save logs (choices/rewards/metadata).
         plot_rewards (bool): whether to show cumulative reward plots.
         plot_frequencies (bool): whether to show arm frequency plots.
+        plot_beliefs (bool): whether to show agent belief plots.
         death_threshold (float): wealth threshold below which agents die.
         initial_wealth (float): starting wealth for each agent.
         step_cost (float): wealth cost paid by each alive agent every timestep.
@@ -46,7 +47,7 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, 
     runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir=save_dir)
 
     # Run the simulation. This will call env.step() repeatedly and update agents.
-    runner.run(plot_rewards=plot_rewards, plot_frequencies=plot_frequencies)
+    runner.run(plot_rewards=plot_rewards, plot_frequencies=plot_frequencies, plot_beliefs=plot_beliefs)
 
 
 
