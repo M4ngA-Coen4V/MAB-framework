@@ -41,27 +41,34 @@ class LearningGovernorAI:
         if seed is not None:
             random.seed(seed)
 
-    def choose_action(self, observation):
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
         """
-        Return a raw continuous adjustment vector for the agents.
-        Each element represents an un-normalized tax or subsidy proposal.
+        Processes the environment state and returns a finalized, budget-balanced 
+        zero-sum tax/subsidy adjustment vector for the living agents.
 
         Args:
-            observation (list): Current state of the environment (agent choices + wealth levels).
+            observation (list): Processed state vector (choices + wealth levels).
+            choices (list): Raw choices made by the bandits this turn.
+            wealths (list): Current financial ledger levels for each agent.
+            raw_rewards (list): Freshly harvested reward payouts before taxes.
+            alive_mask (list of bool): Boolean flags indicating who is alive.
 
         Returns:
-            list: Raw continuous vector of size n_agents sampled from the policy distributions.
+            list: Finished zero-sum continuous adjustment vector of size n_agents.
         """
         self.last_observation = observation
         
-        # Sample raw adjustments from normal distributions centered around self.means
-        action = [random.gauss(mu, self.action_std) for mu in self.means]
+        # 1. Sample raw adjustments from normal distributions centered around self.means
+        raw_action = [random.gauss(mu, self.action_std) for mu in self.means]
         
-        # Cache current actions and policy log probabilities for the gradient calculation later
-        self.last_action = action
-        self.last_log_prob = self._gaussian_log_prob(action)
+        # 2. Project them to a balanced closed-economy vector right here inside the brain
+        balanced_action = self._zero_sum_projection(raw_action, alive_mask)
         
-        return action
+        # 3. Cache the actions and policy log probabilities for the gradient calculation later
+        self.last_action = balanced_action
+        self.last_log_prob = self._gaussian_log_prob(balanced_action)
+        
+        return balanced_action
 
     def update(self, observation, action, reward, next_observation, done=False):
         """
@@ -124,16 +131,11 @@ class LearningGovernorAI:
         """
         Project raw governor adjustments into a strictly zero-sum vector over alive agents only.
         This enforces a closed economy where Total Taxes Collected == Total Subsidies Paid Out.
-
-        Args:
-            raw_adjustments (list): Raw continuous values sampled from the policy.
-            alive_mask (list of bool): True if agent is alive, False if dead.
-
-        Returns:
-            list: Mathematically balanced redistribution vector summing exactly to 0.0.
         """
-        # Extract adjustments only for agents that are currently surviving
-        alive_values = [u for u, alive in zip(raw_adjustments, alive_mask) if alive]
+        alive_values = []
+        for u, alive in zip(raw_adjustments, alive_mask):
+            if alive:
+                alive_values.append(u)
         
         # If no agents are alive, no economic activity can occur
         if not alive_values:
@@ -143,9 +145,15 @@ class LearningGovernorAI:
         mean_value = sum(alive_values) / len(alive_values)
         
         # Subtract the mean from alive agents to center the sum perfectly at 0.0.
-        # Forced to a strict 0.0 if the agent is dead so they are excluded from the economy.
-        return [u - mean_value if alive else 0.0
-                for u, alive in zip(raw_adjustments, alive_mask)]
+        # Forced to a standard 0.0 if the agent is dead so they are excluded.
+        balanced_adjustments = []
+        for u, alive in zip(raw_adjustments, alive_mask):
+            if alive:
+                balanced_adjustments.append(u - mean_value)
+            else:
+                balanced_adjustments.append(0.0)
+                
+        return balanced_adjustments
 
     def compute_governor_reward(self, final_rewards, death_count=0, death_penalty=None):
         """
