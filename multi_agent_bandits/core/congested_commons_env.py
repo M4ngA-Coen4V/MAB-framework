@@ -101,25 +101,29 @@ class CongestedCommonsEnvironment(Environment):
 		
 		#[Phase 3: Governor Tax/Subsidy]
 
-		# Initialize a blank variable to calculate the governor's grade later
-		governor_reward = 0.0
-
-		# If a governor exists, and at least one agent is alive, run intervention
+		adjustments = [0.0] * len(agents)
+			
 		if self.governor and any(self.is_alive):
-			# Step A: Compile the state snapshot [choices + wealths]
+			# The environment builds a clean observation vector for the brain
 			observation = self._build_governor_observation(choices)
 			
-			# Step B: The governor samples its raw continuous policy adjustments
-			raw_adjustments = self.governor.choose_action(observation)
+			# THE INTERFACE: We pass absolutely EVERYTHING available into the governor
+			adjustments = self.governor.choose_action(
+				observation=observation,
+				choices=choices,
+				wealths=list(self.agent_wealths),
+				raw_rewards=list(raw_rewards),
+				alive_mask=list(self.is_alive)
+			)
 			
-			# Step C: Force those numbers to sum perfectly to 0.0 among living agents
-			adjustments = self.governor._zero_sum_projection(raw_adjustments, self.is_alive)
-			
-			# Step D: Directly alter the final payout scores!
+			# Apply adjustments to calculate final scores
 			for agent_idx, adjustment in enumerate(adjustments):
-				final_rewards[agent_idx] += adjustment
+				if self.is_alive[agent_idx]:
+					final_rewards[agent_idx] = raw_rewards[agent_idx] + adjustment
+				else:
+					final_rewards[agent_idx] = 0.0
 		else:
-			adjustments = [0.0] * len(agents)
+			final_rewards = list(raw_rewards)
 
 		#[Phase 4: Economic Accounting]
 
@@ -127,6 +131,10 @@ class CongestedCommonsEnvironment(Environment):
 		self.current_step += 1
 		# Track deaths that occur during this timestep
 		death_count = 0
+
+		# Keep a snapshot of final rewards *before* any potential mid-loop death reset 
+        # to ensure the governor and training logs receive clean, un-bugged reward data
+		payouts_for_training = list(final_rewards)
 
 		# Update wealths and apply death checks for alive agents
 		for agent_idx in range(len(agents)):
@@ -149,16 +157,31 @@ class CongestedCommonsEnvironment(Environment):
 		# Record the wealth snapshot after this timestep has finished
 		self.wealth_history.append(list(self.agent_wealths))
 
+		# Initialize a blank variable to calculate the governor's grade later
+		governor_reward = 0.0
+
 		# Calculate governor reward after redistribution and death penalties
 		if self.governor:
 			governor_reward = self.governor.compute_governor_reward(final_rewards, death_count)
 			self.governor_reward_history.append(governor_reward)
 			if hasattr(self.governor, "record_step"):
-				self.governor.record_step(observation, raw_adjustments, adjustments, governor_reward, death_count=death_count)
+				self.governor.record_step(
+                    observation, 
+                    adjustments, 
+                    adjustments, 
+                    governor_reward, 
+                    death_count=death_count
+                )
 		# Update governor training signal if available
 		if self.governor and self.governor.last_action is not None:
 			next_observation = self._build_governor_observation(choices)
-			self.governor.update(observation, raw_adjustments, governor_reward, next_observation, done=False)
+			self.governor.update(
+                observation, 
+                adjustments, 
+                governor_reward, 
+                next_observation, 
+                done=False
+            )
 
 		return choices, final_rewards
 
