@@ -15,6 +15,7 @@ def main():
     run_parser.add_argument("--plot-frequencies", action="store_true")
     run_parser.add_argument("--plot-beliefs", action="store_true")
     run_parser.add_argument("--plot-environment-health", action="store_true")
+    run_parser.add_argument("--plot-resource-efficiency", action="store_true")
 
     args = parser.parse_args()
 
@@ -45,6 +46,8 @@ def main():
             kwargs["plot_beliefs"] = True
         if args.plot_environment_health:
             kwargs["plot_environment_health"] = True
+        if args.plot_resource_efficiency:
+            kwargs["plot_resource_efficiency"] = True
         try:
             mod.main(**kwargs)
         except TypeError:

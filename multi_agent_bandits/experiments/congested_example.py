@@ -10,7 +10,18 @@ from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 
 
-def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, plot_beliefs=False, plot_environment_health=False, death_threshold=0.0, initial_wealth=200.0, step_cost=2.5):
+def main(
+        steps=1000, 
+        save_dir=None, 
+        plot_rewards=False, 
+        plot_frequencies=False, 
+        plot_beliefs=False, 
+        plot_environment_health=False, 
+        plot_resource_efficiency=False,
+        death_threshold=0.0, 
+        initial_wealth=200.0, 
+        step_cost=2.5
+        ):
     """Run the congested commons baseline experiment.
 
     Args:
@@ -20,6 +31,7 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, 
         plot_frequencies (bool): whether to show arm frequency plots.
         plot_beliefs (bool): whether to show agent belief plots.
         plot_environment_health (bool): whether to show environment health plots.
+        plot_resource_efficiency (bool): whether to show resource efficiency plots.
         death_threshold (float): wealth threshold below which agents die.
         initial_wealth (float): starting wealth for each agent.
         step_cost (float): wealth cost paid by each alive agent every timestep.
@@ -30,6 +42,9 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, 
 
     # Instantiate the governor and the congested commons environment.
     governor = CommunistGovernor(n_agents=n_agents)
+    #governor = None
+    #governor = LearningGovernorAI(n_agents=n_agents)
+
     # This uses default arms means [10, 2, 1] unless 'arms' is provided.
     #env = CongestedCommonsEnvironment(
     #    n_agents=n_agents,
@@ -56,7 +71,12 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, 
     runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir=save_dir)
 
     # Run the simulation. This will call env.step() repeatedly and update agents.
-    runner.run(plot_rewards=plot_rewards, plot_frequencies=plot_frequencies, plot_beliefs=plot_beliefs, plot_environment_health=plot_environment_health)
+    runner.run(
+        plot_rewards=plot_rewards, 
+        plot_frequencies=plot_frequencies, 
+        plot_beliefs=plot_beliefs, 
+        plot_environment_health=plot_environment_health,
+        plot_resource_efficiency=plot_resource_efficiency)
 
 
 
