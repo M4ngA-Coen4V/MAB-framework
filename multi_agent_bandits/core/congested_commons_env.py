@@ -1,7 +1,7 @@
 from multi_agent_bandits.core import agent
 from multi_agent_bandits.core.environment import Environment
 from multi_agent_bandits.core.arm import Arm
-from multi_agent_bandits.core.reward_sharing import custom_100_20_10_share
+from multi_agent_bandits.core.reward_sharing import custom_100_20_10_share, linear_share
 
 
 class CongestedCommonsEnvironment(Environment):
@@ -192,3 +192,154 @@ class CongestedCommonsEnvironment(Environment):
 
 		return choices, final_rewards
 
+
+class DepletingCommonsEnvironment(Environment):
+    """
+    Dynamic Depleting Commons Environment.
+    
+    Behavior:
+    - Default to 3 arms with means [10, 2, 1] unless `arms` is provided.
+    - Uses the imported `linear_share` function to cleanly split rewards on collisions.
+    - Arms have an environmental health factor that degrades under heavy congestion
+      (>1 agent) and slowly regenerates when left alone or used sustainably.
+    - Tracks per-agent wealth and marks agents as dead when wealth < death_threshold.
+    """
+
+    def __init__(self, n_agents=3, arms=None, death_threshold=0.0, initial_wealth=0.0, step_cost=0.0, governor=None, delta_drain=0.15, gamma_regen=0.05):
+        # Build default arms if none provided
+        if arms is None:
+            arms = [
+                Arm(mean=10.0, sd=1.0),
+                Arm(mean=2.0, sd=1.0),
+                Arm(mean=1.0, sd=1.0),
+            ]
+
+        # Initialize base environment using the imported linear_share function
+        super().__init__(n_agents=n_agents, arms=arms, collision_policy=linear_share)
+
+        # Ecological Parameters
+        self.arm_health = [1.0] * self.n_arms    # All arms start at 100% capacity (1.0)
+        self.delta_drain = delta_drain          # Health lost per step when crowded (>1 agent)
+        self.gamma_regen = gamma_regen          # Health recovered per step when rested (<=1 agent)
+        self.environmental_health_history = []  # Log history for thesis plotting
+
+        # Standard parameters and runtime state
+        self.death_threshold = death_threshold
+        self.step_cost = step_cost
+        self.agent_wealths = [initial_wealth] * n_agents
+        self.is_alive = [True] * n_agents
+        self.wealth_history = []
+        self.death_steps = [None] * n_agents
+        self.current_step = 0
+        self.governor = governor
+        self.governor_reward_history = []
+        self.initial_wealth = initial_wealth
+
+    def _build_governor_observation(self, choices):
+        choice_obs = [choice if choice is not None else -1 for choice in choices]
+        # Crucial for the AI Governor: We append the arm health states to the observation vector
+        # so an intelligent agent can see the resource depleting in real-time!
+        return choice_obs + list(self.agent_wealths) + list(self.arm_health)
+
+    def step(self, agents):
+        #[Phase 1: Bandit Choices]
+        choices = [None] * len(agents)
+        collisions = {}
+
+        for agent_idx, agent in enumerate(agents):
+            if not self.is_alive[agent_idx]:
+                continue
+
+            chosen_arm = agent.choose_arm()
+            choices[agent_idx] = chosen_arm
+            collisions.setdefault(chosen_arm, []).append(agent_idx)
+
+        #[Phase 2: Harvest & Collision via linear_share + Health Scaling]
+        raw_rewards = [0.0] * len(agents)
+
+        # 1. Harvest rewards based on CURRENT step's environmental health
+        for arm_idx, agent_ids in collisions.items():
+            n_agents_on_arm = len(agent_ids)
+            base_reward = self.sample_reward(arm_idx)
+            
+            # Scale the total reward pool by the current health of this specific arm
+            total_available_reward = base_reward * self.arm_health[arm_idx]
+
+            # Use the cleanly imported linear_share function
+            shares = linear_share(total_available_reward, n_agents_on_arm)
+            
+            for share, a_id in zip(shares, agent_ids):
+                raw_rewards[a_id] = share
+
+        # 2. State Transition: Update environmental health for the NEXT timestep
+        for arm_idx in range(self.n_arms):
+            agents_on_arm = len(collisions.get(arm_idx, []))
+
+            if agents_on_arm > 1:
+                # Crowded: Resource depletes down to a floor of 0.1
+                self.arm_health[arm_idx] = max(0.1, self.arm_health[arm_idx] - self.delta_drain)
+            else:
+                # Sustained (1 agent) or Rested (0 agents): Resource naturally recovers up to 1.0
+                self.arm_health[arm_idx] = min(1.0, self.arm_health[arm_idx] + self.gamma_regen)
+
+        # Log environmental state snapshot
+        self.environmental_health_history.append(list(self.arm_health))
+        final_rewards = list(raw_rewards)
+        
+        #[Phase 3: Governor Tax/Subsidy]
+        adjustments = [0.0] * len(agents)
+            
+        if self.governor and any(self.is_alive):
+            observation = self._build_governor_observation(choices)
+            
+            adjustments = self.governor.choose_action(
+                observation=observation,
+                choices=choices,
+                wealths=list(self.agent_wealths),
+                raw_rewards=list(raw_rewards),
+                alive_mask=list(self.is_alive)
+            )
+            
+            for agent_idx, adjustment in enumerate(adjustments):
+                if self.is_alive[agent_idx]:
+                    final_rewards[agent_idx] = raw_rewards[agent_idx] + adjustment
+                else:
+                    final_rewards[agent_idx] = 0.0
+        else:
+            final_rewards = list(raw_rewards)
+
+        #[Phase 4: Economic Accounting]
+        self.current_step += 1
+        death_count = 0
+
+        for agent_idx in range(len(agents)):
+            if not self.is_alive[agent_idx]:
+                final_rewards[agent_idx] = 0.0
+                continue
+
+            self.agent_wealths[agent_idx] += final_rewards[agent_idx] - self.step_cost
+
+            if self.agent_wealths[agent_idx] < self.death_threshold:
+                self.is_alive[agent_idx] = False
+                self.death_steps[agent_idx] = self.current_step
+                final_rewards[agent_idx] = 0.0
+                death_count += 1
+
+        self.wealth_history.append(list(self.agent_wealths))
+
+        # Governor utilities
+        if self.governor:
+            governor_reward = self.governor.compute_governor_reward(final_rewards, death_count)
+            self.governor_reward_history.append(governor_reward)
+            if hasattr(self.governor, "record_step"):
+                self.governor.record_step(observation, adjustments, adjustments, governor_reward, death_count=death_count)
+                
+        if self.governor and self.governor.last_action is not None:
+            next_observation = self._build_governor_observation(choices)
+            self.governor.update(observation, adjustments, governor_reward, next_observation, done=False)
+
+        # Trigger reinforcement learning updates for agents
+        for agent_idx, agent in enumerate(agents):
+            agent.update(final_rewards[agent_idx])
+
+        return choices, final_rewards

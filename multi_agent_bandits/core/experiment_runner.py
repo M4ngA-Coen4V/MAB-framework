@@ -33,7 +33,7 @@ class ExperimentRunner:
             print(f"  - Agent {i}: {ag.name}")
         print("==========================")
 
-    def run(self, plot_rewards=False, plot_frequencies=False, plot_beliefs=False):
+    def run(self, plot_rewards=False, plot_frequencies=False, plot_beliefs=False, plot_environment_health=False):
         self.print_experiment_info()
 
         for t in range(self.T):
@@ -68,6 +68,9 @@ class ExperimentRunner:
 
         if plot_beliefs:
             self.plot_agent_beliefs()
+        
+        if plot_environment_health:
+            self.plot_environmental_health()
 
         return self.choices_log, self.rewards_log
 
@@ -257,5 +260,51 @@ class ExperimentRunner:
             ax.legend(loc="upper right")
 
         axes[-1].set_xlabel("Simulation Timestep")
+        plt.tight_layout()
+        plt.show()
+
+    def plot_environmental_health(self):
+        """Plots the health degradation and recovery of each arm over the course of the simulation.
+        
+        This is crucial for analyzing the sustainability trap in dynamic environments.
+        """
+        import numpy as np
+        
+        # Check if the attached environment has environmental tracking history
+        if not hasattr(self.env, "environmental_health_history") or not self.env.environmental_health_history:
+            print("[Visualizer] Connected environment does not support or contain environmental health logs.")
+            return
+
+        health_history = np.array(self.env.environmental_health_history)
+        timesteps = np.arange(len(health_history)) + 1
+        n_arms = self.env.n_arms
+        
+        plt.figure(figsize=(10, 4.5))
+        
+        # Consistent color palette for arms mapping to standard multi-agent plots
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c'] 
+        
+        for arm_idx in range(n_arms):
+            plt.plot(
+                timesteps, 
+                health_history[:, arm_idx], 
+                label=f"Arm {arm_idx} Health (Mean: {self.env.arms[arm_idx].mean})", 
+                color=colors[arm_idx] if arm_idx < len(colors) else None,
+                linewidth=2
+            )
+            
+        plt.title("Ecosystem Degradation: Environmental Health Over Time", fontsize=12, fontweight='bold')
+        plt.xlabel("Simulation Timestep", fontsize=10)
+        plt.ylabel("Resource Capacity Factor (κ)", fontsize=10)
+        plt.ylim(0.0, 1.05)
+        plt.grid(True, linestyle=":", alpha=0.6)
+        plt.legend(loc="lower left", fontsize=9)
+        
+        # Optional auto-saving if directory is set up
+        if self.save_dir:
+            save_path = os.path.join(self.save_dir, "environmental_health.png")
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"[Visualizer] Environmental health plot saved to: {save_path}")
+            
         plt.tight_layout()
         plt.show()
