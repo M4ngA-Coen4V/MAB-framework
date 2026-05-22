@@ -3,7 +3,7 @@ import csv
 import os
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 from multi_agent_bandits.core.congested_commons_env import CongestedCommonsEnvironment, DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import LearningGovernorAI, CommunistGovernor
+from multi_agent_bandits.core.governor import LearningGovernorAI, CommunistGovernor, SocialistGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 
@@ -44,6 +44,7 @@ def main(
     governor = CommunistGovernor(n_agents=n_agents)
     #governor = None
     #governor = LearningGovernorAI(n_agents=n_agents)
+    #governor = SocialistGovernor(n_agents=n_agents)
 
     # This uses default arms means [10, 2, 1] unless 'arms' is provided.
     #env = CongestedCommonsEnvironment(

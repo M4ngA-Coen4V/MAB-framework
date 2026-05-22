@@ -256,3 +256,80 @@ class CommunistGovernor:
         """
         # Total productivity across the entire pool
         return sum(final_rewards)
+    
+class SocialistGovernor:
+    """
+    A mixed-incentive baseline governor.
+    
+    This governor implements a 50/50 split economy:
+    - 50% of each agent's raw harvest is kept purely as private property.
+    - 50% of each agent's raw harvest is collectivized into a central pool.
+    
+    The central pool is summed up and distributed perfectly equally among 
+    all living agents. The resulting formula ensures that an agent's final reward
+    is exactly 50% their own production + 50% the average community production.
+    """
+
+    def __init__(self, n_agents=3):
+        """
+        Initialize the Socialist Governor baseline.
+        """
+        self.n_agents = n_agents
+        
+        # Setting this to None tells the environment runner that this governor 
+        # is a heuristic baseline and does not require policy gradient .update() hooks
+        self.last_action = None 
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        """
+        Calculates the tax/subsidy adjustments required to enforce the 50/50 split economy.
+
+        Args:
+            observation (list): Processed state vector (ignored by this governor).
+            choices (list): Raw choices made by the bandits this turn (ignored).
+            wealths (list): Current financial ledger levels for each agent (ignored).
+            raw_rewards (list): Freshly harvested reward payouts before taxes.
+            alive_mask (list of bool): Boolean flags indicating who is alive.
+
+        Returns:
+            list: Finished zero-sum continuous adjustment vector of size n_agents.
+        """
+        # 1. Count how many agents are currently alive
+        num_alive = sum(1 for alive in alive_mask if alive)
+
+        # If everyone has starved to death, no economic activity can occur
+        if num_alive == 0:
+            return [0.0] * self.n_agents
+
+        # 2. Collectivize 50% of the raw wealth harvested by surviving agents
+        total_socialized_pool = 0.0
+        for idx, reward in enumerate(raw_rewards):
+            if alive_mask[idx]:
+                total_socialized_pool += 0.5 * reward
+
+        # 3. Calculate the equal social dividend payout per living agent
+        social_dividend = total_socialized_pool / num_alive
+
+        # 4. Generate the zero-sum adjustments vector.
+        # Target Final Payout = (0.5 * Raw Reward) + Social Dividend
+        # Adjustment = Target Final Payout - Raw Reward
+        # Simplified: Adjustment = Social Dividend - (0.5 * Raw Reward)
+        adjustments = []
+        for idx, reward in enumerate(raw_rewards):
+            if alive_mask[idx]:
+                # Agents who produce above the community average face a net tax (negative adjustment).
+                # Agents who produce below the community average receive a net subsidy (positive adjustment).
+                tax_or_subsidy = social_dividend - (0.5 * reward)
+                adjustments.append(tax_or_subsidy)
+            else:
+                # Dead agents cannot pay taxes or receive social dividends
+                adjustments.append(0.0)
+
+        return adjustments
+
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        """
+        Evaluates performance to keep historical experiment metric logs unbroken.
+        """
+        # Evaluates total macroeconomic productivity across the entire group
+        return sum(final_rewards)
