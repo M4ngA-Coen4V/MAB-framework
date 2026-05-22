@@ -26,11 +26,10 @@ def main(steps=1000, save_dir=None, plot_rewards=False, plot_frequencies=False, 
     """
 
     # Number of agents in the baseline scenario
-    n_agents = 3
+    n_agents = 30
 
     # Instantiate the governor and the congested commons environment.
     governor = CommunistGovernor(n_agents=n_agents)
-
     # This uses default arms means [10, 2, 1] unless 'arms' is provided.
     #env = CongestedCommonsEnvironment(
     #    n_agents=n_agents,

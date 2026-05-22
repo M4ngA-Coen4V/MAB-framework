@@ -209,10 +209,42 @@ class DepletingCommonsEnvironment(Environment):
         # Build default arms if none provided
         if arms is None:
             arms = [
-                Arm(mean=10.0, sd=1.0),
-                Arm(mean=2.0, sd=1.0),
-                Arm(mean=1.0, sd=1.0),
-            ]
+			# ==== Tier 1: The "Mega-Yield" Gems (High Value, High Competition) ====
+			Arm(mean=10.0, sd=1.0),  # Arm 0: The original goldmine
+			Arm(mean=9.0,  sd=1.0),  # Arm 1
+			Arm(mean=8.2,  sd=1.0),  # Arm 2
+			Arm(mean=7.5,  sd=1.0),  # Arm 3
+			Arm(mean=6.8,  sd=1.0),  # Arm 4
+
+			# ==== Tier 2: The "Industrial Middle Class" (Reliable, Moderate Yield) ====
+			Arm(mean=5.5,  sd=1.0),  # Arm 5
+			Arm(mean=5.0,  sd=1.0),  # Arm 6
+			Arm(mean=4.6,  sd=1.0),  # Arm 7
+			Arm(mean=4.2,  sd=1.0),  # Arm 8
+			Arm(mean=3.9,  sd=1.0),  # Arm 9
+			Arm(mean=3.6,  sd=1.0),  # Arm 10
+			Arm(mean=3.3,  sd=1.0),  # Arm 11
+			Arm(mean=3.0,  sd=1.0),  # Arm 12
+			Arm(mean=2.8,  sd=1.0),  # Arm 13
+			Arm(mean=2.6,  sd=1.0),  # Arm 14
+
+			# ==== Tier 3: The "Subsistence/Scarcity" Tail (Low Yield, Safety Nets) ====
+			Arm(mean=2.0,  sd=1.0),  # Arm 15 (Your original Arm 1)
+			Arm(mean=1.9,  sd=1.0),  # Arm 16
+			Arm(mean=1.8,  sd=1.0),  # Arm 17
+			Arm(mean=1.7,  sd=1.0),  # Arm 18
+			Arm(mean=1.6,  sd=1.0),  # Arm 19
+			Arm(mean=1.5,  sd=1.0),  # Arm 20
+			Arm(mean=1.4,  sd=1.0),  # Arm 21
+			Arm(mean=1.3,  sd=1.0),  # Arm 22
+			Arm(mean=1.2,  sd=1.0),  # Arm 23
+			Arm(mean=1.1,  sd=1.0),  # Arm 24
+			Arm(mean=1.0,  sd=1.0),  # Arm 25 (Your original Arm 2)
+			Arm(mean=0.9,  sd=1.0),  # Arm 26
+			Arm(mean=0.8,  sd=1.0),  # Arm 27
+			Arm(mean=0.7,  sd=1.0),  # Arm 28
+			Arm(mean=0.5,  sd=1.0),  # Arm 29: The absolute baseline desert
+		]
 
         # Initialize base environment using the imported linear_share function
         super().__init__(n_agents=n_agents, arms=arms, collision_policy=linear_share)
