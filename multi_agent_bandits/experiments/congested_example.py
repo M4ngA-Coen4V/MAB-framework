@@ -42,9 +42,9 @@ def main(
 
     # Instantiate the governor and the congested commons environment.
     #governor = CommunistGovernor(n_agents=n_agents)
-    governor = None
+    #governor = None
     #governor = LearningGovernorAI(n_agents=n_agents)
-    #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=10.0)
+    governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
     
 
     # This uses default arms means [10, 2, 1] unless 'arms' is provided.
