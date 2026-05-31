@@ -129,6 +129,27 @@ class ExperimentRunner:
             for i, total in enumerate(self.total_rewards):
                 f.write(f"  Agent {i} ({self.agents[i].name}): {total:.2f}\n")
             f.write("============================\n")
+            total_combined_wealth = sum(self.env.agent_wealths)
+            f.write(f"Total Combined Wealth (All Agents): {total_combined_wealth:.2f}\n")
+            f.write("============================\n")
+            total_combined_reward = sum(self.total_rewards)
+            f.write(f"Total Combined Reward (All Agents): {total_combined_reward:.2f}\n")
+            f.write("============================\n")
+            f.write("Agent survival duration:\n")
+            for i, death_step in enumerate(self.env.death_steps):
+                if death_step is None:
+                    f.write(f"  Agent {i} survived all {self.T} steps\n")
+                else:
+                    f.write(f"  Agent {i} died at step {death_step}\n")
+
+            print("----------------------------")
+        print("Agent survival duration:")
+        for i, death_step in enumerate(self.env.death_steps):
+            if death_step is None:
+                print(f"  Agent {i} survived all {self.T} steps")
+            else:
+                print(f"  Agent {i} died at step {death_step}")
+        print("============================")
 
     def _save_governor_history_csv(self):
         """Save a CSV file containing all governor debug steps directly to save_dir."""

@@ -256,3 +256,123 @@ class CommunistGovernor:
         """
         # Total productivity across the entire pool
         return sum(final_rewards)
+    
+
+class PigouvianGovernor:
+    """
+    A rule-based baseline governor that implements a targeted Pigouvian tax.
+    
+    Instead of pooling all wealth equally, it calculates real-time crowding taxes 
+    on over-exploited arms to punish greedy actions. It then funnels those taxes 
+    exclusively as survival subsidies to agents close to bankruptcy.
+    """
+
+    def __init__(self, n_agents=30, delta_drain=0.15, survival_threshold=10.0):
+        """
+        Initialize the Pigouvian Governor.
+
+        Args:
+            n_agents (int): Total number of agents in the system.
+            delta_drain (float): The environmental damage multiplier from your environment file.
+            survival_threshold (float): Wealth level below which an agent qualifies for a subsidy.
+        """
+        self.n_agents = n_agents
+        self.delta_drain = delta_drain
+        self.survival_threshold = survival_threshold
+        
+        # This property acts as a marker for the environment runner.
+        # Setting it to None tells the environment to skip the policy gradient .update()
+        self.last_action = None
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        """
+        Calculates the targeted crowding tax matrix and safely redistributes 
+        collected fines to starving agents.
+
+        Args:
+            observation (list): Processed state vector (ignored by this governor).
+            choices (list): Raw choices made by the bandits this turn.
+            wealths (list): Current financial ledger levels for each agent.
+            raw_rewards (list): Freshly harvested reward payouts before taxes (ignored).
+            alive_mask (list of bool): Boolean flags indicating who is alive.
+
+        Returns:
+            list: Finished zero-sum continuous adjustment vector of size n_agents.
+        """
+        # 1. Count how many agents chose each arm this turn
+        arm_counts = {}
+        for idx, choice in enumerate(choices):
+            if alive_mask[idx]:
+                arm_counts[choice] = arm_counts.get(choice, 0) + 1
+
+        # 2. Charge a targeted crowding tax to agents occupying overcrowded arms
+        total_tax_collected = 0.0
+        individual_taxes = [0.0] * self.n_agents
+
+        for idx, choice in enumerate(choices):
+            if alive_mask[idx]:
+                agents_on_arm = arm_counts.get(choice, 0)
+                
+                if agents_on_arm > 1:
+                    # Excess agents past the sustainable 1-agent limit
+                    excess_agents = agents_on_arm - 1
+                    
+                    # Tax matches the exact dynamic ecological damage caused to the arm
+                    tax_amount = excess_agents * self.delta_drain
+                    
+                    individual_taxes[idx] = tax_amount
+                    total_tax_collected += tax_amount
+
+        # 3. Identify struggling agents that qualify for a survival subsidy
+        struggling_agents = []
+        for idx, wealth in enumerate(wealths):
+            if alive_mask[idx] and wealth < self.survival_threshold:
+                struggling_agents.append(idx)
+
+        # 4. Redistribute collected taxes to ensure a closed, zero-sum economy
+        adjustments = [0.0] * self.n_agents
+
+        if total_tax_collected > 0.0:
+            if struggling_agents:
+                # Target Option A: Distribute equally among agents near the death threshold
+                subsidy_per_strugler = total_tax_collected / len(struggling_agents)
+                for idx in struggling_agents:
+                    adjustments[idx] = subsidy_per_strugler
+            else:
+                # Target Option B: If everyone is wealthy, give it to agents on underused arms
+                underused_agents = []
+                for idx, choice in enumerate(choices):
+                    if alive_mask[idx] and arm_counts.get(choice, 0) == 1:
+                        underused_agents.append(idx)
+                        
+                if underused_agents:
+                    subsidy_per_underused = total_tax_collected / len(underused_agents)
+                    for idx in underused_agents:
+                        adjustments[idx] = subsidy_per_underused
+                else:
+                    # Fallback Option C: If everyone is on crowded arms, give a flat refund
+                    num_alive = sum(alive_mask)
+                    subsidy_flat = total_tax_collected / num_alive
+                    for idx, alive in enumerate(alive_mask):
+                        if alive:
+                            adjustments[idx] = subsidy_flat
+
+        # 5. Combine the negative taxes and positive subsidies into the final adjustment vector
+        final_adjustments = []
+        for idx, alive in enumerate(alive_mask):
+            if alive:
+                # Adjustment = Subsidy received minus Tax paid
+                net_change = adjustments[idx] - individual_taxes[idx]
+                final_adjustments.append(net_change)
+            else:
+                # Dead agents are completely cut off from the economic loop
+                final_adjustments.append(0.0)
+
+        return final_adjustments
+
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        """
+        Evaluates performance to keep the historical metrics tracking unbroken.
+        """
+        # Total productivity across the entire pool
+        return sum(final_rewards)
