@@ -101,7 +101,7 @@ def run_batch_simulation(n_trials=100, steps=1000):
     print(f"| Avg Combined System Reward  | {avg_reward:.2f} ± {std_reward:.2f} |")
     print(f"| Max Combined System Reward  | {max_reward:.2f}            |")
     print(f"| Min Combined System Reward  | {min_reward:.2f}            |")
-    print(f"| Avg Combined Final Wealth   | {avg_wealth:.2f}            |")
+    #print(f"| Avg Combined Final Wealth   | {avg_wealth:.2f}            |")
     print(f"| Avg Active Survivors / 30   | {avg_survivors:.1f}             |")
     print(f"| Complete Extinction Rate    | {extinction_rate:.1f}%            |")
     if batch_extinction_steps:
