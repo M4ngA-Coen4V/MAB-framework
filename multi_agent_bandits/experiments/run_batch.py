@@ -23,11 +23,11 @@ def run_batch_simulation(n_trials=100, steps=1000):
 
     for trial in range(n_trials):
         # 1. ALWAYS initialize a completely fresh env, governor, and agents per trial
-        governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
+        #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
         #governor = None
         #governor = LearningGovernorAI(n_agents=n_agents)
         #governor = CommunistGovernor(n_agents=n_agents)
-        #governor = SocialistGovernor(n_agents=n_agents)
+        governor = SocialistGovernor(n_agents=n_agents, tax_rate=0.3)
 
         # Dynamically capture the name of the active governor once
         if governor is not None and trial == 0:
