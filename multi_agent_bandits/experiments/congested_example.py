@@ -3,7 +3,7 @@ import csv
 import os
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 from multi_agent_bandits.core.congested_commons_env import CongestedCommonsEnvironment, DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import LearningGovernorAI, CommunistGovernor, SocialistGovernor
+from multi_agent_bandits.core.governor import LearningGovernorAI, CommunistGovernor, SocialistGovernor, PigouvianGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 
@@ -41,10 +41,12 @@ def main(
     n_agents = 3
 
     # Instantiate the governor and the congested commons environment.
-    governor = CommunistGovernor(n_agents=n_agents)
+    #governor = CommunistGovernor(n_agents=n_agents)
     #governor = None
     #governor = LearningGovernorAI(n_agents=n_agents)
     #governor = SocialistGovernor(n_agents=n_agents)
+    governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
+    
 
     # This uses default arms means [10, 2, 1] unless 'arms' is provided.
     env = CongestedCommonsEnvironment(
