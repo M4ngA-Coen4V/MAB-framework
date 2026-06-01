@@ -458,3 +458,93 @@ class SocialistGovernor:
         """
         # Evaluates total macroeconomic productivity across the entire group
         return sum(final_rewards)
+    
+class SafetyNetGovernor:
+    """
+    A minimal-intervention emergency governor.
+    
+    - Under normal conditions, it leaves raw rewards untouched (0% tax rate).
+    - If any agent's wealth drops below a specified safety buffer, it steps in.
+    - It calculates exactly how much wealth is missing to guarantee survival this step.
+    - It collects this exact amount by evenly taxing all agents who are safely above 
+      the danger line, ensuring a zero-sum, redistribution safety net.
+    """
+
+    def __init__(self, n_agents=30, safety_buffer=15.0, step_cost=3.0):
+        """
+        Initialize the Safety Net Governor.
+
+        Args:
+            n_agents (int): Total number of agents.
+            safety_buffer (float): The wealth threshold *before* step_cost below which 
+                                  emergency intervention is triggered.
+            step_cost (float): Environmental cost subtracted per turn (to accurately forecast death).
+        """
+        self.n_agents = n_agents
+        self.safety_buffer = safety_buffer
+        self.step_cost = step_cost
+        self.last_action = None
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        """
+        Intervenes only to prevent death, calculating precise micro-taxes.
+        """
+        num_alive = sum(1 for alive in alive_mask if alive)
+        if num_alive <= 1:
+            # If 0 or 1 agent is left, redistribution is impossible or meaningless
+            return [0.0] * self.n_agents
+
+        # Initialize adjustments at zero (default: free-market / no intervention)
+        adjustments = [0.0] * self.n_agents
+
+        # 1. Forecast next-step wealth to catch dying agents
+        # Expected Wealth = Current Wealth + Raw Reward - Step Cost
+        expected_wealths = []
+        for idx in range(self.n_agents):
+            if alive_mask[idx]:
+                expected_wealths.append(wealths[idx] + raw_rewards[idx] - self.step_cost)
+            else:
+                expected_wealths.append(-float('inf'))
+
+        # 2. Identify who needs a rescue and calculate total bailout fund required
+        total_bailout_needed = 0.0
+        rescue_targets = []
+
+        for idx, exp_wealth in enumerate(expected_wealths):
+            if alive_mask[idx] and exp_wealth < self.safety_buffer:
+                needed_subsidy = self.safety_buffer - exp_wealth
+                total_bailout_needed += needed_subsidy
+                rescue_targets.append((idx, needed_subsidy))
+
+        # If no one is in danger, exit early with zero taxes!
+        if total_bailout_needed == 0:
+            return adjustments
+
+        # 3. Identify who is healthy enough to pay taxes
+        # Eligible taxpayers must be alive and safely above the safety buffer
+        taxpayers = [idx for idx, exp_wealth in enumerate(expected_wealths) 
+                     if alive_mask[idx] and exp_wealth > self.safety_buffer]
+
+        # Edge case: If the whole society is crumbling and nobody is healthy enough to tax,
+        # we try to distribute the tax burden evenly among all living agents instead.
+        if not taxpayers:
+            taxpayers = [idx for idx, alive in enumerate(alive_mask) if alive]
+
+        # 4. Apportion the tax evenly among taxpayers and distribute to the vulnerable
+        tax_per_taxpayer = total_bailout_needed / len(taxpayers)
+
+        # Apply negative adjustments (taxes)
+        for idx in taxpayers:
+            adjustments[idx] -= tax_per_taxpayer
+
+        # Apply positive adjustments (subsidies)
+        for idx, subsidy in rescue_targets:
+            adjustments[idx] += subsidy
+
+        return adjustments
+
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        """
+        Macroeconomic evaluation tracking system productivity.
+        """
+        return sum(final_rewards)

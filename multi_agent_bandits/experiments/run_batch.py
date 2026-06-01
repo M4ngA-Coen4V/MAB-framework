@@ -2,7 +2,7 @@ import numpy as np
 import os
 import sys
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI
+from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, SafetyNetGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 
@@ -27,7 +27,8 @@ def run_batch_simulation(n_trials=100, steps=1000):
         #governor = None
         #governor = LearningGovernorAI(n_agents=n_agents)
         #governor = CommunistGovernor(n_agents=n_agents)
-        governor = SocialistGovernor(n_agents=n_agents, tax_rate=0.3)
+        #governor = SocialistGovernor(n_agents=n_agents, tax_rate=0.3)
+        governor = SafetyNetGovernor(n_agents=n_agents, safety_buffer=0.0, step_cost=3.0)
 
         # Dynamically capture the name of the active governor once
         if governor is not None and trial == 0:
