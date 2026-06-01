@@ -235,8 +235,11 @@ class ExperimentRunner:
         n_arms = self.env.n_arms
         
         counts = np.zeros((n_agents, n_arms), dtype=int)
-        for step in self.choices_log:
+        for step_idx, step in enumerate(self.choices_log):
             for agent_idx, arm in enumerate(step):
+                # FIX: Ignore ghost pulls if the arm data is None or negative (dead state placeholder)
+                if arm is None or arm < 0:
+                    continue
                 counts[agent_idx, arm] += 1
 
         # FIX: For high scale, subplots crush text. Transform into a consolidated Heatmap instead!

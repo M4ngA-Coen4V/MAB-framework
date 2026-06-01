@@ -308,8 +308,13 @@ class DepletingCommonsEnvironment(Environment):
             agents_on_arm = len(collisions.get(arm_idx, []))
 
             if agents_on_arm > 1:
-                # Crowded: Resource depletes down to a floor of 0.1
-                self.arm_health[arm_idx] = max(0.1, self.arm_health[arm_idx] - self.delta_drain)
+                # Scale drainage by how many EXTRA agents are crowding the arm
+				# 2 agents = 1 * delta_drain
+				# 10 agents = 9 * delta_drain
+                excess_agents = agents_on_arm - 1
+                total_drain = excess_agents * self.delta_drain
+                
+                self.arm_health[arm_idx] = max(0.1, self.arm_health[arm_idx] - total_drain)
             else:
                 # Sustained (1 agent) or Rested (0 agents): Resource naturally recovers up to 1.0
                 self.arm_health[arm_idx] = min(1.0, self.arm_health[arm_idx] + self.gamma_regen)

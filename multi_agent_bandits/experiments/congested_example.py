@@ -20,7 +20,7 @@ def main(
         plot_resource_efficiency=False,
         death_threshold=0.0, 
         initial_wealth=200.0, 
-        step_cost=2.5
+        step_cost=3.0
         ):
     """Run the congested commons baseline experiment.
 
@@ -38,7 +38,7 @@ def main(
     """
 
     # Number of agents in the baseline scenario
-    n_agents = 30
+    n_agents = 3
 
     # Instantiate the governor and the congested commons environment.
     governor = CommunistGovernor(n_agents=n_agents)
@@ -47,21 +47,21 @@ def main(
     #governor = SocialistGovernor(n_agents=n_agents)
 
     # This uses default arms means [10, 2, 1] unless 'arms' is provided.
-    #env = CongestedCommonsEnvironment(
-    #    n_agents=n_agents,
-    #    death_threshold=death_threshold,
-    #    initial_wealth=initial_wealth,
-    #    step_cost=step_cost,
-    #    governor=governor,
-    #)
-
-    env = DepletingCommonsEnvironment(
+    env = CongestedCommonsEnvironment(
         n_agents=n_agents,
         death_threshold=death_threshold,
         initial_wealth=initial_wealth,
         step_cost=step_cost,
-        governor=governor
-        )
+        governor=governor,
+    )
+
+    #env = DepletingCommonsEnvironment(
+    #    n_agents=n_agents,
+    #    death_threshold=death_threshold,
+    #    initial_wealth=initial_wealth,
+    #    step_cost=step_cost,
+    #    governor=governor
+    #    )
 
 
     # Create agents (default: epsilon-greedy). Agents will learn from rewards
