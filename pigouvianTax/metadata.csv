@@ -65,7 +65,7 @@ collision_policy,linear_share
 governor,PigouvianGovernor
 death_threshold,0.0
 initial_wealth,200.0
-step_cost,2.5
+step_cost,3.0
 n_agents,30
 agent_0_name,EpsilonGreedyAgent
 agent_1_name,EpsilonGreedyAgent
