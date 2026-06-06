@@ -459,6 +459,23 @@ class SocialistGovernor:
         # Evaluates total macroeconomic productivity across the entire group
         return sum(final_rewards)
     
+
+class FreeMarketGovernor:
+    """
+    A laissez-faire governor baseline.
+    Enforces a 100% private property economy by applying zero adjustments.
+    """
+    def __init__(self, n_agents=30):
+        self.n_agents = n_agents
+        self.last_action = None
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        # Simply return zero adjustments for every agent
+        return [0.0] * self.n_agents
+
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        return sum(final_rewards)
+
 class SafetyNetGovernor:
     """
     A minimal-intervention emergency governor.
@@ -548,3 +565,132 @@ class SafetyNetGovernor:
         Macroeconomic evaluation tracking system productivity.
         """
         return sum(final_rewards)
+    
+
+class DynamicTaxingGovernor:
+    """
+    Discrete-action meta-governor using a Softmax policy gradient skeleton.
+    
+    Instead of directly modifying individual wealth vectors, this AI selects 
+    an entire sub-governor strategy to handle economic routing each round.
+    
+    Action Map:
+      0: CommunistGovernor()
+      1: SocialistGovernor(tax_rate=0.3)
+      2: PigouvianGovernor(delta_drain=0.15)
+      3: FreeMarketGovernor()
+    """
+
+    def __init__(self, n_agents=30, learning_rate=0.05, death_penalty=100.0, seed=None):
+        """
+        Initialize the Dynamic Macro-Governor AI.
+        """
+        self.n_agents = n_agents
+        self.learning_rate = learning_rate
+        self.death_penalty = death_penalty
+        
+        # 1. Instantiate the available sub-governors as the action space
+        self.strategies = [
+            CommunistGovernor(n_agents=n_agents),
+            SocialistGovernor(n_agents=n_agents, tax_rate=0.3),
+            PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0),
+            FreeMarketGovernor(n_agents=n_agents)
+        ]
+        self.n_actions = len(self.strategies)
+        
+        # 2. Policy parameters: Numerical preferences (logits) for each strategy.
+        # Initialized to 0.0 so all policies have an equal probability at the start.
+        self.logits = [0.0] * self.n_actions
+        
+        self.last_action = None
+
+        # Memory storage buffers for discrete policy gradient step tracking
+        self.last_action_idx = None
+        self.last_action_probs = None
+        self.history = []
+
+        if seed is not None:
+            random.seed(seed)
+
+    def _get_action_probabilities(self):
+        """
+        Compute the Softmax probability distribution over the available macro-policies.
+        """
+        # Stability fix: Subtract max logit to avoid numeric overflow explosions
+        max_logit = max(self.logits)
+        exp_logits = [math.exp(l - max_logit) for l in self.logits]
+        sum_exp = sum(exp_logits)
+        return [e / sum_exp for e in exp_logits]
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        """
+        Selects a macro-economic strategy using a Softmax distribution, and then 
+        delegates the step calculations to that strategy.
+        """
+        # 1. Calculate current probability distribution across your strategies
+        probs = self._get_action_probabilities()
+        self.last_action_probs = probs
+        
+        # 2. Sample a macro-policy choice based on those probabilities
+        r = random.random()
+        cumulative_prob = 0.0
+        chosen_idx = 0
+        for idx, p in enumerate(probs):
+            cumulative_prob += p
+            if r <= cumulative_prob:
+                chosen_idx = idx
+                break
+        
+        self.last_action_idx = chosen_idx
+        
+        # 3. Delegate execution directly to the chosen sub-governor strategy
+        selected_strategy = self.strategies[chosen_idx]
+        adjustments = selected_strategy.choose_action(
+            observation, choices, wealths, raw_rewards, alive_mask
+        )
+        
+        # --- CRITICAL FIX: Give the environment loop a non-None value to trigger update() ---
+        self.last_action = adjustments 
+        # -------------------------------------------------------------------------------------
+        
+        return adjustments
+
+    def update(self, observation, action, reward, next_observation, done=False):
+        """
+        Update strategy preferences (logits) using the discrete REINFORCE update rule.
+        """
+        if self.last_action_idx is None or self.last_action_probs is None:
+            return
+
+        # STABILITY SCALING: Scale down large reward magnitudes (e.g., 50,000+) 
+        # so gradients don't break the exponential math in Softmax
+        scaled_reward = reward / 10000.0 
+
+        # Nudge our strategic preferences up or down based on performance
+        for idx in range(self.n_actions):
+            if idx == self.last_action_idx:
+                grad = 1.0 - self.last_action_probs[idx]
+            else:
+                grad = -self.last_action_probs[idx]
+            
+            # logit = logit + alpha * Scaled_Reward * Gradient
+            self.logits[idx] += self.learning_rate * scaled_reward * grad
+
+        # Reset tracking buffers and clean up environment flag
+        self.last_action_idx = None
+        self.last_action_probs = None
+        self.last_action = None  # Reset back to None for the next step cycle
+
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        """
+        Evaluates system performance. Combines raw resource extraction 
+        with a massive structural penalty for enabling bankruptcies.
+        """
+        total_reward = sum(final_rewards)
+        return total_reward - (self.death_penalty * death_count)
+
+    def get_policy_distribution_string(self):
+        """Helper function to print what your agent is thinking during batch runs."""
+        probs = self._get_action_probabilities()
+        names = ["Communist", "Socialist", "Pigouvian", "FreeMarket"]
+        return ", ".join([f"{name}: {p*100:.1f}%" for name, p in zip(names, probs)])

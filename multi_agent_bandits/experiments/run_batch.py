@@ -2,7 +2,7 @@ import numpy as np
 import os
 import sys
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, SafetyNetGovernor
+from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, SafetyNetGovernor, FreeMarketGovernor, DynamicTaxingGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 
@@ -20,15 +20,18 @@ def run_batch_simulation(n_trials=100, steps=1000):
     # Redirect standard output momentarily to suppress individual experiment spam
     original_stdout = sys.stdout
     governor_name = "None (Baseline)"
+    governor = DynamicTaxingGovernor(n_agents=n_agents, learning_rate=0.50, death_penalty=0.0)
 
     for trial in range(n_trials):
         # 1. ALWAYS initialize a completely fresh env, governor, and agents per trial
-        governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=10.0)
+        #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=10.0)
         #governor = None
+        #governor = FreeMarketGovernor()
         #governor = LearningGovernorAI(n_agents=n_agents)
         #governor = CommunistGovernor(n_agents=n_agents)
         #governor = SocialistGovernor(n_agents=n_agents, tax_rate=0.1)
         #governor = SafetyNetGovernor(n_agents=n_agents, safety_buffer=0.0, step_cost=3.0)
+        #governor = DynamicTaxingGovernor(n_agents=n_agents, learning_rate=0.05, death_penalty=0.0)
 
         # Dynamically capture the name of the active governor once
         if governor is not None and trial == 0:
@@ -79,6 +82,8 @@ def run_batch_simulation(n_trials=100, steps=1000):
         # Progress indicator
         if (trial + 1) % 10 == 0:
             print(f"  -> Completed {trial + 1}/{n_trials} trials...")
+            if hasattr(governor, 'get_policy_distribution_string'):
+                print(f"     Current Policy Logic -> {governor.get_policy_distribution_string()}")
 
     # --- Step 4: Compute Statistical Metrics ---
     avg_reward = np.mean(batch_total_rewards)
@@ -109,4 +114,4 @@ def run_batch_simulation(n_trials=100, steps=1000):
     print("="*50)
 
 if __name__ == "__main__":
-    run_batch_simulation(n_trials=100, steps=1000)
+    run_batch_simulation(n_trials=500, steps=1000)

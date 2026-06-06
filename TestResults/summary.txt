@@ -33,7 +33,7 @@ Arms:
   Arm 28: mean=0.7, sd=1.0
   Arm 29: mean=0.5, sd=1.0
 Collision policy: linear_share
-Governor: SocialistGovernor
+Governor: DynamicTaxingGovernor
 Death threshold: 0.0
 Initial wealth: 200.0
 Step cost: 3.0
@@ -70,69 +70,69 @@ Agents:
   - Agent 28: EpsilonGreedyAgent
   - Agent 29: EpsilonGreedyAgent
 Total rewards:
-  Agent 0 (EpsilonGreedyAgent): 4590.52
-  Agent 1 (EpsilonGreedyAgent): 94.85
-  Agent 2 (EpsilonGreedyAgent): 620.53
-  Agent 3 (EpsilonGreedyAgent): 47.98
-  Agent 4 (EpsilonGreedyAgent): 4078.42
-  Agent 5 (EpsilonGreedyAgent): 58.22
-  Agent 6 (EpsilonGreedyAgent): 63.49
-  Agent 7 (EpsilonGreedyAgent): 122.13
-  Agent 8 (EpsilonGreedyAgent): 68.35
-  Agent 9 (EpsilonGreedyAgent): 74.95
-  Agent 10 (EpsilonGreedyAgent): 70.73
-  Agent 11 (EpsilonGreedyAgent): 158.14
-  Agent 12 (EpsilonGreedyAgent): 3450.09
-  Agent 13 (EpsilonGreedyAgent): 4389.92
-  Agent 14 (EpsilonGreedyAgent): 262.44
-  Agent 15 (EpsilonGreedyAgent): 92.56
-  Agent 16 (EpsilonGreedyAgent): 319.28
-  Agent 17 (EpsilonGreedyAgent): 6320.49
-  Agent 18 (EpsilonGreedyAgent): 3296.67
-  Agent 19 (EpsilonGreedyAgent): 226.28
-  Agent 20 (EpsilonGreedyAgent): 97.21
-  Agent 21 (EpsilonGreedyAgent): 5390.07
-  Agent 22 (EpsilonGreedyAgent): 4927.18
-  Agent 23 (EpsilonGreedyAgent): 5774.77
-  Agent 24 (EpsilonGreedyAgent): 88.40
-  Agent 25 (EpsilonGreedyAgent): 130.04
-  Agent 26 (EpsilonGreedyAgent): 97.30
-  Agent 27 (EpsilonGreedyAgent): 83.57
-  Agent 28 (EpsilonGreedyAgent): 6822.74
-  Agent 29 (EpsilonGreedyAgent): 3833.17
+  Agent 0 (EpsilonGreedyAgent): 121.06
+  Agent 1 (EpsilonGreedyAgent): 253.15
+  Agent 2 (EpsilonGreedyAgent): 7136.36
+  Agent 3 (EpsilonGreedyAgent): 3834.04
+  Agent 4 (EpsilonGreedyAgent): 6005.51
+  Agent 5 (EpsilonGreedyAgent): 4276.71
+  Agent 6 (EpsilonGreedyAgent): 458.07
+  Agent 7 (EpsilonGreedyAgent): 86.74
+  Agent 8 (EpsilonGreedyAgent): 6646.02
+  Agent 9 (EpsilonGreedyAgent): 5211.03
+  Agent 10 (EpsilonGreedyAgent): 79.78
+  Agent 11 (EpsilonGreedyAgent): 5622.25
+  Agent 12 (EpsilonGreedyAgent): 103.56
+  Agent 13 (EpsilonGreedyAgent): 3230.13
+  Agent 14 (EpsilonGreedyAgent): 107.37
+  Agent 15 (EpsilonGreedyAgent): 112.55
+  Agent 16 (EpsilonGreedyAgent): 277.06
+  Agent 17 (EpsilonGreedyAgent): 131.77
+  Agent 18 (EpsilonGreedyAgent): 4013.27
+  Agent 19 (EpsilonGreedyAgent): 44.61
+  Agent 20 (EpsilonGreedyAgent): 128.54
+  Agent 21 (EpsilonGreedyAgent): 61.98
+  Agent 22 (EpsilonGreedyAgent): 63.10
+  Agent 23 (EpsilonGreedyAgent): 4413.62
+  Agent 24 (EpsilonGreedyAgent): 3372.64
+  Agent 25 (EpsilonGreedyAgent): 100.60
+  Agent 26 (EpsilonGreedyAgent): 49.42
+  Agent 27 (EpsilonGreedyAgent): 190.43
+  Agent 28 (EpsilonGreedyAgent): 43.51
+  Agent 29 (EpsilonGreedyAgent): 3888.26
 ============================
-Total Combined Wealth (All Agents): 22056.57
+Total Combined Wealth (All Agents): 24033.28
 ============================
-Total Combined Reward (All Agents): 55650.48
+Total Combined Reward (All Agents): 60063.14
 ============================
 Agent survival duration:
-  Agent 0 survived all 1000 steps
-  Agent 1 died at step 99
-  Agent 2 died at step 274
-  Agent 3 died at step 83
+  Agent 0 died at step 108
+  Agent 1 died at step 152
+  Agent 2 survived all 1000 steps
+  Agent 3 survived all 1000 steps
   Agent 4 survived all 1000 steps
-  Agent 5 died at step 87
-  Agent 6 died at step 88
-  Agent 7 died at step 108
-  Agent 8 died at step 90
-  Agent 9 died at step 92
-  Agent 10 died at step 91
-  Agent 11 died at step 120
-  Agent 12 survived all 1000 steps
+  Agent 5 survived all 1000 steps
+  Agent 6 died at step 220
+  Agent 7 died at step 96
+  Agent 8 survived all 1000 steps
+  Agent 9 survived all 1000 steps
+  Agent 10 died at step 94
+  Agent 11 survived all 1000 steps
+  Agent 12 died at step 102
   Agent 13 survived all 1000 steps
-  Agent 14 died at step 155
-  Agent 15 died at step 98
-  Agent 16 died at step 174
-  Agent 17 survived all 1000 steps
+  Agent 14 died at step 103
+  Agent 15 died at step 105
+  Agent 16 died at step 160
+  Agent 17 died at step 111
   Agent 18 survived all 1000 steps
-  Agent 19 died at step 143
-  Agent 20 died at step 100
-  Agent 21 survived all 1000 steps
-  Agent 22 survived all 1000 steps
+  Agent 19 died at step 82
+  Agent 20 died at step 110
+  Agent 21 died at step 88
+  Agent 22 died at step 88
   Agent 23 survived all 1000 steps
-  Agent 24 died at step 97
-  Agent 25 died at step 111
-  Agent 26 died at step 100
-  Agent 27 died at step 95
-  Agent 28 survived all 1000 steps
+  Agent 24 survived all 1000 steps
+  Agent 25 died at step 101
+  Agent 26 died at step 84
+  Agent 27 died at step 131
+  Agent 28 died at step 82
   Agent 29 survived all 1000 steps

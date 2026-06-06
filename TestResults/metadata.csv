@@ -62,7 +62,7 @@ arm_28_sd,1.0
 arm_29_mean,0.5
 arm_29_sd,1.0
 collision_policy,linear_share
-governor,SocialistGovernor
+governor,DynamicTaxingGovernor
 death_threshold,0.0
 initial_wealth,200.0
 step_cost,3.0
