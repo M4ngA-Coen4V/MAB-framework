@@ -44,8 +44,8 @@ def main(
     #governor = CommunistGovernor(n_agents=n_agents)
     #governor = None
     #governor = LearningGovernorAI(n_agents=n_agents)
-    #governor = SocialistGovernor(n_agents=n_agents)
-    governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
+    governor = SocialistGovernor(n_agents=n_agents, tax_rate=0.3)
+    #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
     
 
     # This uses default arms means [10, 2, 1] unless 'arms' is provided.
