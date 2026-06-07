@@ -2,7 +2,7 @@ import numpy as np
 import os
 import sys
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, SafetyNetGovernor, FreeMarketGovernor, DynamicTaxingGovernor, NeuralPolicyGradientGovernor
+from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, SafetyNetGovernor, FreeMarketGovernor, DynamicTaxingGovernor, NeuralPolicyGradientGovernor, MultiObjectiveNeuralGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 
@@ -22,7 +22,8 @@ def run_batch_simulation(n_trials=100, steps=1000):
     governor_name = "None (Baseline)"
 
     #governor = DynamicTaxingGovernor(n_agents=n_agents, learning_rate=0.05, death_penalty=0.0)
-    governor = NeuralPolicyGradientGovernor(n_agents=n_agents, max_steps=1000, learning_rate=0.01, death_penalty=0.0)
+    #governor = NeuralPolicyGradientGovernor(n_agents=n_agents, max_steps=1000, learning_rate=0.01, death_penalty=0.0)
+    governor = MultiObjectiveNeuralGovernor(n_agents=n_agents, learning_rate=0.005, entropy_coef=0.05, seed=None)   
 
     for trial in range(n_trials):
         # 1. ALWAYS initialize a completely fresh env, governor, and agents per trial

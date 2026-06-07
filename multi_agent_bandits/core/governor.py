@@ -1,8 +1,5 @@
 import math
 import random
-
-import math
-import random
 import numpy as np
 import torch
 import torch.nn as nn
@@ -928,6 +925,207 @@ class NeuralPolicyGradientGovernor:
         state_tensor = self._extract_continuous_state(sample_obs, sample_wealths, sample_alive_mask)
         with torch.no_grad():
             probs = self.policy_net(state_tensor).numpy()
+        return {
+            "Communist": f"{probs[0]*100:.1f}%",
+            "Socialist": f"{probs[1]*100:.1f}%",
+            "Pigouvian": f"{probs[2]*100:.1f}%",
+            "FreeMarket": f"{probs[3]*100:.1f}%"
+        }
+    
+
+#MultiObjectiveNeuralGovernor
+
+
+
+class PolicyBrain(nn.Module):
+    """A lightweight network that outputs action preferences for a specific objective."""
+    def __init__(self, input_dim, output_dim):
+        super(PolicyBrain, self).__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(input_dim, 16),
+            nn.Tanh(),
+            nn.Linear(16, output_dim)
+        )
+        
+    def forward(self, x):
+        raw_logits = self.fc(x)
+        # Clamp to avoid runaway explosion before softmax
+        clamped_logits = torch.clamp(raw_logits, min=-4.0, max=4.0)
+        return clamped_logits
+
+
+class MultiObjectiveNeuralGovernor:
+    def __init__(self, n_agents=30, learning_rate=0.005, entropy_coef=0.05, seed=None):
+        self.n_agents = n_agents
+        self.entropy_coef = entropy_coef
+        self.learning_rate = learning_rate
+        
+        from multi_agent_bandits.core.governor import (
+            CommunistGovernor, SocialistGovernor, PigouvianGovernor, FreeMarketGovernor
+        )
+        self.strategies = [
+            CommunistGovernor(n_agents=n_agents),
+            SocialistGovernor(n_agents=n_agents, tax_rate=0.5),
+            PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0),
+            FreeMarketGovernor(n_agents=n_agents)
+        ]
+        self.n_actions = len(self.strategies)
+        self.input_dim = 3
+        
+        if seed is not None:
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+
+        # 🌟 THE THREE INDEPENDENT OBJECTIVE BRAINS
+        self.brain_economy = PolicyBrain(self.input_dim, self.n_actions)
+        self.brain_ecology = PolicyBrain(self.input_dim, self.n_actions)
+        self.brain_equality = PolicyBrain(self.input_dim, self.n_actions)
+        
+        # Optimize all three brains simultaneously
+        self.optimizer = optim.Adam(
+            list(self.brain_economy.parameters()) + 
+            list(self.brain_ecology.parameters()) + 
+            list(self.brain_equality.parameters()), 
+            lr=self.learning_rate
+        )
+        
+        # Single-step tracking variables
+        self.last_state_tensor = None
+        self.last_action_idx = None
+
+    def _calculate_gini(self, wealths):
+        array = np.array(wealths, dtype=np.float32)
+        if np.sum(array) == 0:
+            return 0.0
+        array += 1e-6
+        array = np.sort(array)
+        index = np.arange(1, array.shape[0] + 1)
+        n = array.shape[0]
+        return ((np.sum((2 * index - n - 1) * array)) / (n * np.sum(array)))
+
+    def _extract_continuous_state(self, arm_healths, wealths, alive_mask):
+        avg_health = np.mean(arm_healths) if arm_healths else 1.0
+        survivor_ratio = sum(alive_mask) / len(alive_mask) if alive_mask else 1.0
+        gini_inequality = self._calculate_gini(wealths)
+        
+        # Smooth scaling for neural input
+        state_vector = np.array([avg_health, survivor_ratio, gini_inequality], dtype=np.float32)
+        return torch.FloatTensor(state_vector)
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        # We parse the features directly from the source environment arrays
+        start_idx = self.n_agents * 2
+        # Cleanly extract arm health from the environment observations vector
+        arm_healths = observation[start_idx : start_idx + len(self.strategies)] 
+        
+        state_tensor = self._extract_continuous_state(arm_healths, wealths, alive_mask)
+        self.last_state_tensor = state_tensor
+        
+        with torch.no_grad():
+            logits_econ = self.brain_economy(state_tensor)
+            logits_eco = self.brain_ecology(state_tensor)
+            logits_eq = self.brain_equality(state_tensor)
+            
+            # Consensus via Logit Addition: The brains vote together to select the action!
+            combined_logits = logits_econ + logits_eco + logits_eq
+            probs = torch.softmax(combined_logits, dim=-1).numpy()
+            
+        chosen_idx = np.random.choice(self.n_actions, p=probs)
+        self.last_action_idx = chosen_idx
+        
+        selected_strategy = self.strategies[chosen_idx]
+        return selected_strategy.choose_action(observation, choices, wealths, raw_rewards, alive_mask)
+
+    def compute_vector_rewards(self, final_rewards, arm_healths, wealths, death_count=0):
+        """
+        Calibrated MORL Vector Engine based on true environment limits.
+        Max Score: ~99.3 | Avg Score: ~52.0
+        Bounds all channels cleanly between -1.0 and +1.0.
+        """
+        # 1. Economy Track
+        gross_utility = sum(final_rewards) # Real range: ~10.0 to ~99.3
+        
+        # Center the score around your true empirical average (52.0)
+        # If gross_utility is 52.0, centered_econ becomes 0.0
+        centered_econ = gross_utility - 52.0
+        
+        # Scale the variance. Since max is ~99.3, a great turn is +40 above average.
+        # Dividing by 40.0 clamps a perfect turn right near +1.0.
+        scaled_econ = centered_econ / 40.0
+        
+        # Apply the death penalty directly to this scaled factor
+        # If an agent dies, it drags the economic score down by 0.25 intervals
+        raw_econ_signal = scaled_econ - (death_count * 0.25)
+        
+        # Smoothly lock the final output into the strict democratic [-1.0, +1.0] boundary
+        r_economy = math.tanh(raw_econ_signal)
+        
+        
+        # 2. Ecology Track (Unchanged, bounds between -1.0 and +1.0)
+        avg_health = np.mean(arm_healths) if arm_healths else 1.0
+        if avg_health >= 0.75:
+            r_ecology = 1.0
+        else:
+            r_ecology = max(-1.0, 1.0 - ((0.75 - avg_health) * 4.0))
+        
+        
+        # 3. Equality Track (Unchanged, bounds between -1.0 and +1.0)
+        gini = self._calculate_gini(wealths)
+        if gini <= 0.30:
+            r_equality = 1.0
+        else:
+            r_equality = max(-1.0, 1.0 - ((gini - 0.30) * 5.0))
+            
+        return r_economy, r_ecology, r_equality
+
+    def update_morl(self, r_economy, r_ecology, r_equality):
+        """Updates each objective brain using ONLY its dedicated tracking reward."""
+        if self.last_state_tensor is None or self.last_action_idx is None:
+            return
+            
+        # Re-evaluate the logits for this step
+        logits_econ = self.brain_economy(self.last_state_tensor)
+        logits_eco = self.brain_ecology(self.last_state_tensor)
+        logits_eq = self.brain_equality(self.last_state_tensor)
+        
+        # Target action index log trackers
+        prob_econ = torch.softmax(logits_econ, dim=-1)[self.last_action_idx]
+        prob_eco = torch.softmax(logits_eco, dim=-1)[self.last_action_idx]
+        prob_eq = torch.softmax(logits_eq, dim=-1)[self.last_action_idx]
+        
+        # Calculate isolated Loss functions for each distinct brain node
+        loss_econ = -torch.log(prob_econ + 1e-8) * r_economy
+        loss_eco = -torch.log(prob_eco + 1e-8) * r_ecology
+        loss_eq = -torch.log(prob_eq + 1e-8) * r_equality
+        
+        # Calculate localized entropy to enforce exploration safety boundaries
+        total_probs = torch.softmax(logits_econ + logits_eco + logits_eq, dim=-1)
+        entropy = -torch.sum(total_probs * torch.log(total_probs + 1e-8))
+        
+        # Merge individual loss functions into one step execution pass
+        total_loss = loss_econ + loss_eco + loss_eq - (self.entropy_coef * entropy)
+        
+        # Optimization step
+        self.optimizer.zero_grad()
+        total_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.brain_economy.parameters(), max_norm=0.5)
+        torch.nn.utils.clip_grad_norm_(self.brain_ecology.parameters(), max_norm=0.5)
+        torch.nn.utils.clip_grad_norm_(self.brain_equality.parameters(), max_norm=0.5)
+        self.optimizer.step()
+        
+        # Flush references
+        self.last_state_tensor = None
+        self.last_action_idx = None
+
+    def get_live_probabilities(self, sample_obs, sample_wealths, sample_alive_mask):
+        # Fallback tracking if lists are empty during custom evaluations
+        start_idx = self.n_agents * 2
+        arm_healths = sample_obs[start_idx : start_idx + self.n_actions]
+        state_tensor = self._extract_continuous_state(arm_healths, sample_wealths, sample_alive_mask)
+        
+        with torch.no_grad():
+            combined_logits = self.brain_economy(state_tensor) + self.brain_ecology(state_tensor) + self.brain_equality(state_tensor)
+            probs = torch.softmax(combined_logits, dim=-1).numpy()
         return {
             "Communist": f"{probs[0]*100:.1f}%",
             "Socialist": f"{probs[1]*100:.1f}%",
