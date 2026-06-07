@@ -20,7 +20,7 @@ def run_batch_simulation(n_trials=100, steps=1000):
     # Redirect standard output momentarily to suppress individual experiment spam
     original_stdout = sys.stdout
     governor_name = "None (Baseline)"
-    governor = DynamicTaxingGovernor(n_agents=n_agents, learning_rate=0.50, death_penalty=0.0)
+    governor = DynamicTaxingGovernor(n_agents=n_agents, learning_rate=0.05, death_penalty=0.0)
 
     for trial in range(n_trials):
         # 1. ALWAYS initialize a completely fresh env, governor, and agents per trial
@@ -82,8 +82,16 @@ def run_batch_simulation(n_trials=100, steps=1000):
         # Progress indicator
         if (trial + 1) % 10 == 0:
             print(f"  -> Completed {trial + 1}/{n_trials} trials...")
-            if hasattr(governor, 'get_policy_distribution_string'):
-                print(f"     Current Policy Logic -> {governor.get_policy_distribution_string()}")
+            
+            # 1. Pull the percentage dictionaries for each phase
+            early_probs = governor.get_phase_probabilities(0)
+            mid_probs   = governor.get_phase_probabilities(1)
+            late_probs  = governor.get_phase_probabilities(2)
+            
+            # 2. Print them as beautifully aligned rows
+            print(f"     Early-Game (Wealth Build) -> Communist: {early_probs['Communist']}, Socialist: {early_probs['Socialist']}, Pigouvian: {early_probs['Pigouvian']}, FreeMarket: {early_probs['FreeMarket']}")
+            print(f"     Mid-Game   (Stabilization) -> Communist: {mid_probs['Communist']}, Socialist: {mid_probs['Socialist']}, Pigouvian: {mid_probs['Pigouvian']}, FreeMarket: {mid_probs['FreeMarket']}")
+            print(f"     Late-Game  (Crisis/Survival)-> Communist: {late_probs['Communist']}, Socialist: {late_probs['Socialist']}, Pigouvian: {late_probs['Pigouvian']}, FreeMarket: {late_probs['FreeMarket']}\n")
 
     # --- Step 4: Compute Statistical Metrics ---
     avg_reward = np.mean(batch_total_rewards)
@@ -114,4 +122,4 @@ def run_batch_simulation(n_trials=100, steps=1000):
     print("="*50)
 
 if __name__ == "__main__":
-    run_batch_simulation(n_trials=500, steps=1000)
+    run_batch_simulation(n_trials=100, steps=1000)

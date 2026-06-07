@@ -569,69 +569,85 @@ class SafetyNetGovernor:
 
 class DynamicTaxingGovernor:
     """
-    Discrete-action meta-governor using a Softmax policy gradient skeleton.
+    A Macro-Economic Reinforcement Learning Governor.
     
-    Instead of directly modifying individual wealth vectors, this AI selects 
-    an entire sub-governor strategy to handle economic routing each round.
-    
-    Action Map:
-      0: CommunistGovernor()
-      1: SocialistGovernor(tax_rate=0.3)
-      2: PigouvianGovernor(delta_drain=0.15)
-      3: FreeMarketGovernor()
+    Instead of assigning micro-taxes directly, it treats 4 rule-based governors
+    as distinct macro-actions. It uses a State-Discretized Policy Gradient 
+    (REINFORCE) to learn which economic strategy works best during different 
+    phases of the simulation timeline.
     """
-
-    def __init__(self, n_agents=30, learning_rate=0.05, death_penalty=100.0, seed=None):
-        """
-        Initialize the Dynamic Macro-Governor AI.
-        """
+    def __init__(self, n_agents=30, max_steps=1000, learning_rate=0.05, death_penalty=100.0, seed=None):
         self.n_agents = n_agents
         self.learning_rate = learning_rate
+        self.max_steps = max_steps
         self.death_penalty = death_penalty
         
-        # 1. Instantiate the available sub-governors as the action space
+        # 1. Instantiate the available sub-governors as our discrete action space
+        from multi_agent_bandits.core.governor import (
+            CommunistGovernor, SocialistGovernor, PigouvianGovernor, FreeMarketGovernor
+        )
         self.strategies = [
             CommunistGovernor(n_agents=n_agents),
-            SocialistGovernor(n_agents=n_agents, tax_rate=0.3),
+            SocialistGovernor(n_agents=n_agents, tax_rate=0.5),
             PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0),
             FreeMarketGovernor(n_agents=n_agents)
         ]
         self.n_actions = len(self.strategies)
         
-        # 2. Policy parameters: Numerical preferences (logits) for each strategy.
-        # Initialized to 0.0 so all policies have an equal probability at the start.
-        self.logits = [0.0] * self.n_actions
+        # 2. Context Space Setup (Game Phases)
+        # Row 0: Early Game, Row 1: Mid Game, Row 2: Late Game
+        self.n_states = 3
+        self.internal_step = 0  # Clock tracker for temporal categorization
         
+        # 3. Policy Parameters: A 2D Matrix of raw preferences (State x Action)
+        self.logits_matrix = [[0.0] * self.n_actions for _ in range(self.n_states)]
+        
+        # 4. Environment framework integration hooks and short-term buffers
         self.last_action = None
-
-        # Memory storage buffers for discrete policy gradient step tracking
         self.last_action_idx = None
         self.last_action_probs = None
-        self.history = []
+        self.last_state_idx = None
 
         if seed is not None:
             random.seed(seed)
 
-    def _get_action_probabilities(self):
+    def _get_state_index(self, observation):
         """
-        Compute the Softmax probability distribution over the available macro-policies.
+        Determines the current game phase based on timeline progression.
+        Increments the internal clock upon selection.
         """
-        # Stability fix: Subtract max logit to avoid numeric overflow explosions
-        max_logit = max(self.logits)
-        exp_logits = [math.exp(l - max_logit) for l in self.logits]
+        progress = self.internal_step / self.max_steps
+        self.internal_step += 1
+        
+        if progress < 0.25:
+            return 0  # Early Game (0% - 25%)
+        elif progress < 0.75:
+            return 1  # Mid Game (25% - 75%)
+        else:
+            return 2  # Late Game (75% - 100%)
+
+    def _get_action_probabilities(self, state_idx):
+        """Calculates Softmax percentages specifically for the active game phase row."""
+        state_logits = self.logits_matrix[state_idx]
+        max_logit = max(state_logits)
+        exp_logits = [math.exp(l - max_logit) for l in state_logits]
         sum_exp = sum(exp_logits)
         return [e / sum_exp for e in exp_logits]
 
     def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
         """
-        Selects a macro-economic strategy using a Softmax distribution, and then 
-        delegates the step calculations to that strategy.
+        Identifies the current game context, samples an economic strategy,
+        and delegates tax calculations to that strategy.
         """
-        # 1. Calculate current probability distribution across your strategies
-        probs = self._get_action_probabilities()
+        # 1. Identify context phase
+        state_idx = self._get_state_index(observation)
+        self.last_state_idx = state_idx
+        
+        # 2. Compute probabilities for this context phase
+        probs = self._get_action_probabilities(state_idx)
         self.last_action_probs = probs
         
-        # 2. Sample a macro-policy choice based on those probabilities
+        # 3. Sample an action index based on weights
         r = random.random()
         cumulative_prob = 0.0
         chosen_idx = 0
@@ -640,33 +656,31 @@ class DynamicTaxingGovernor:
             if r <= cumulative_prob:
                 chosen_idx = idx
                 break
-        
         self.last_action_idx = chosen_idx
         
-        # 3. Delegate execution directly to the chosen sub-governor strategy
+        # 4. Delegate computation to the selected structural governor
         selected_strategy = self.strategies[chosen_idx]
         adjustments = selected_strategy.choose_action(
             observation, choices, wealths, raw_rewards, alive_mask
         )
         
-        # --- CRITICAL FIX: Give the environment loop a non-None value to trigger update() ---
-        self.last_action = adjustments 
-        # -------------------------------------------------------------------------------------
-        
+        # Framework interface pass-through bypass
+        self.last_action = adjustments
         return adjustments
 
     def update(self, observation, action, reward, next_observation, done=False):
         """
-        Update strategy preferences (logits) using the discrete REINFORCE update rule.
+        Performs contextual credit assignment. Nudges the weights of the specific
+        matrix cell that generated the current performance score.
         """
-        if self.last_action_idx is None or self.last_action_probs is None:
+        if self.last_action_idx is None or self.last_action_probs is None or self.last_state_idx is None:
             return
 
-        # STABILITY SCALING: Scale down large reward magnitudes (e.g., 50,000+) 
-        # so gradients don't break the exponential math in Softmax
-        scaled_reward = reward / 10000.0 
+        # Downscale step rewards to stabilize exponential gradient updates
+        scaled_reward = reward / 100.0 
+        state_row = self.last_state_idx
 
-        # Nudge our strategic preferences up or down based on performance
+        # REINFORCE update step applied exclusively to the current phase row
         for idx in range(self.n_actions):
             if idx == self.last_action_idx:
                 grad = 1.0 - self.last_action_probs[idx]
@@ -674,23 +688,31 @@ class DynamicTaxingGovernor:
                 grad = -self.last_action_probs[idx]
             
             # logit = logit + alpha * Scaled_Reward * Gradient
-            self.logits[idx] += self.learning_rate * scaled_reward * grad
+            self.logits_matrix[state_row][idx] += self.learning_rate * scaled_reward * grad
 
-        # Reset tracking buffers and clean up environment flag
+        # Flush action buffers for the next step iteration
         self.last_action_idx = None
         self.last_action_probs = None
-        self.last_action = None  # Reset back to None for the next step cycle
+        self.last_state_idx = None
+        self.last_action = None
 
     def compute_governor_reward(self, final_rewards, death_count=0):
         """
         Evaluates system performance. Combines raw resource extraction 
-        with a massive structural penalty for enabling bankruptcies.
+        with a structural penalty for enabling bankruptcies.
         """
         total_reward = sum(final_rewards)
         return total_reward - (self.death_penalty * death_count)
 
-    def get_policy_distribution_string(self):
-        """Helper function to print what your agent is thinking during batch runs."""
-        probs = self._get_action_probabilities()
-        names = ["Communist", "Socialist", "Pigouvian", "FreeMarket"]
-        return ", ".join([f"{name}: {p*100:.1f}%" for name, p in zip(names, probs)])
+    def get_phase_probabilities(self, state_idx):
+        """
+        Helper method providing a clean percentage string dictionary for console 
+        logging wrappers.
+        """
+        probs = self._get_action_probabilities(state_idx)
+        return {
+            "Communist": f"{probs[0]*100:.1f}%",
+            "Socialist": f"{probs[1]*100:.1f}%",
+            "Pigouvian": f"{probs[2]*100:.1f}%",
+            "FreeMarket": f"{probs[3]*100:.1f}%"
+        }

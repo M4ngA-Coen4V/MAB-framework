@@ -371,10 +371,21 @@ class DepletingCommonsEnvironment(Environment):
             if hasattr(self.governor, "record_step"):
                 self.governor.record_step(observation, adjustments, adjustments, governor_reward, death_count=death_count)
                 
-        if self.governor and self.governor.last_action is not None:
-            next_observation = self._build_governor_observation(choices)
-            self.governor.update(observation, adjustments, governor_reward, next_observation, done=False)
-
+        # --- FIXED ENVIRONMENT GOVERNOR UPDATE HOOK ---
+        if self.governor:
+            # Explicitly generate a fresh observation to prevent passing stale references
+            current_obs = self._build_governor_observation(choices)
+            
+            if self.governor.last_action is not None:
+                next_observation = self._build_governor_observation(choices)
+                self.governor.update(
+                    observation=current_obs, 
+                    action=adjustments, 
+                    reward=governor_reward, 
+                    next_observation=next_observation, 
+                    done=False
+                )
+        # -----------------------------------------------
         # Trigger reinforcement learning updates for agents
         for agent_idx, agent in enumerate(agents):
             agent.update(final_rewards[agent_idx])
