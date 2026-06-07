@@ -22,7 +22,7 @@ def run_batch_simulation(n_trials=100, steps=1000):
     governor_name = "None (Baseline)"
 
     #governor = DynamicTaxingGovernor(n_agents=n_agents, learning_rate=0.05, death_penalty=0.0)
-    governor = NeuralPolicyGradientGovernor(n_agents=n_agents, max_steps=1000, learning_rate=0.0001, death_penalty=0.0)
+    governor = NeuralPolicyGradientGovernor(n_agents=n_agents, max_steps=1000, learning_rate=0.01, death_penalty=0.0)
 
     for trial in range(n_trials):
         # 1. ALWAYS initialize a completely fresh env, governor, and agents per trial

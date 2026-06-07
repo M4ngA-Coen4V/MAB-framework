@@ -893,10 +893,35 @@ class NeuralPolicyGradientGovernor:
         self.last_action_idx = None
         self.last_action = None
 
-    def compute_governor_reward(self, final_rewards, death_count=0):
-        """Evaluates system performance. Subtracts structural bankruptcy penalties."""
-        total_reward = sum(final_rewards)
-        return total_reward - (self.death_penalty * death_count)
+    def compute_governor_reward(self, final_rewards, arm_healths, wealths, death_count=0):
+        """
+        An online-optimized step reward function. 
+        Forces the reward magnitude to stay small and tightly bounded, 
+        giving the entropy penalty a fair fight at every single step.
+        """
+        # 1. Economic Production (Scaled down significantly to avoid overwhelming the brain)
+        gross_utility = sum(final_rewards) / 100.0  # Scales e.g. 1500.0 down to 15.0
+        
+        # 2. Ecological Penalty (Triggers the moment resources drop below 70% capacity)
+        avg_health = np.mean(arm_healths) if arm_healths else 1.0
+        ecology_penalty = 0.0
+        if avg_health < 0.70:
+            # The lower the health drops, the exponentially worse this penalty becomes
+            ecology_penalty = math.pow(0.70 - avg_health, 2) * 50.0 
+            
+        # 3. Inequality Penalty (Based directly on our continuous Gini score)
+        gini = self._calculate_gini(wealths)
+        inequality_penalty = 0.0
+        if gini > 0.40:
+            # Punish the governor for creating severe wealth gaps before agents go bankrupt
+            inequality_penalty = (gini - 0.40) * 20.0
+            
+        # 4. Crisis Death Penalty
+        bankruptcy_penalty = death_count * 0.0
+        
+        # Combine everything into a single localized step score
+        total_step_reward = gross_utility - ecology_penalty - inequality_penalty - bankruptcy_penalty
+        return total_step_reward
 
     def get_live_probabilities(self, sample_obs, sample_wealths, sample_alive_mask):
         """Helper method allowing batch execution loggers to inspect current brain outputs."""

@@ -364,10 +364,22 @@ class DepletingCommonsEnvironment(Environment):
 
         self.wealth_history.append(list(self.agent_wealths))
 
-        # Governor utilities
+       # Governor utilities
         if self.governor:
-            governor_reward = self.governor.compute_governor_reward(final_rewards, death_count)
+            # 🌟 FIXED: Read directly from self.arm_health array instead of accessing arm items
+            current_arm_healths = list(self.arm_health)
+            current_wealths = list(self.agent_wealths)
+            
+            # Pass the moving ecosystem metrics into the reward calculator
+            governor_reward = self.governor.compute_governor_reward(
+                final_rewards=final_rewards, 
+                arm_healths=current_arm_healths, 
+                wealths=current_wealths, 
+                death_count=death_count
+            )
+            
             self.governor_reward_history.append(governor_reward)
+            
             if hasattr(self.governor, "record_step"):
                 self.governor.record_step(observation, adjustments, adjustments, governor_reward, death_count=death_count)
                 
