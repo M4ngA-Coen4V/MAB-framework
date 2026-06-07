@@ -1182,8 +1182,8 @@ class PPONeuralGovernor:
         ]
         self.n_actions = len(self.strategies)
         
-        # Continuous state inputs: [Avg Arm Health, Survivor Ratio, Gini Coefficient]
-        self.input_dim = 3
+        # Continuous state inputs: [Congestion, Survivor Ratio, Poorest Runway, Poverty Rate, Exploitation Focus]
+        self.input_dim = 5
         self.network = ActorCriticNetwork(self.input_dim, self.n_actions)
         self.optimizer = optim.Adam(self.network.parameters(), lr=learning_rate)
 
@@ -1208,12 +1208,72 @@ class PPONeuralGovernor:
         return (np.sum((2 * index - len(array) - 1) * array)) / (len(array) * np.sum(array))
 
     def _extract_state(self, observation, wealths, alive_mask):
-        start_idx = self.n_agents * 2
-        arm_healths = observation[start_idx : start_idx + self.n_actions] 
-        avg_health = np.mean(arm_healths) if len(arm_healths) > 0 else 1.0
-        survivor_ratio = sum(alive_mask) / len(alive_mask) if alive_mask else 1.0
-        gini = self._calculate_gini(wealths)
-        return torch.FloatTensor([avg_health, survivor_ratio, gini])
+        n_alive = sum(alive_mask)
+        if n_alive == 0:
+            return torch.zeros(5) # Everyone is dead
+            
+        # --------------------------------------------------------
+        # INPUT 1: System-Wide Congestion (HHI Index)
+        # --------------------------------------------------------
+        # 'observation' contains the agent choices from the previous step
+        # Count how many agents picked each arm index
+        self.n_arms = len(observation) - (2 * self.n_agents)
+        arm_counts = np.zeros(self.n_arms)
+        for idx, alive in enumerate(alive_mask):
+            if alive:
+                # Assuming observation structure allows pulling previous arm chosen
+                chosen_arm = observation[idx] 
+                arm_counts[chosen_arm] += 1
+                
+        # Sum of squared proportions
+        hhi_congestion = np.sum((arm_counts / n_alive) ** 2)
+        # Normalize so that perfectly even distribution yields ~0.0
+        min_hhi = 1.0 / self.n_arms
+        normalized_congestion = (hhi_congestion - min_hhi) / (1.0 - min_hhi) if self.n_arms > 1 else 1.0
+        
+        # --------------------------------------------------------
+        # INPUT 2: Survivor Ratio
+        # --------------------------------------------------------
+        survivor_ratio = n_alive / self.n_agents
+        
+        # --------------------------------------------------------
+        # INPUT 3: Poorest Agent Survival Runway
+        # --------------------------------------------------------
+        living_wealths = [wealths[i] for i in range(self.n_agents) if alive_mask[i]]
+        min_wealth = min(living_wealths) if living_wealths else 0.0
+        steps_left = min_wealth / 3.0 # step_cost = 3.0
+        # Bound it between 0.0 and 1.0 (capped at a safe 20-step runway horizon)
+        poorest_runway = min(1.0, steps_left / 20.0)
+        
+        # --------------------------------------------------------
+        # INPUT 4: Poverty Rate (Systemic Risk Headcount)
+        # --------------------------------------------------------
+        # Let's define the poverty line as having less than 5 steps of life left (15.0 coins)
+        poverty_line = 15.0
+        poor_count = sum(1 for w in living_wealths if w < poverty_line)
+        poverty_rate = poor_count / n_alive
+        
+        # --------------------------------------------------------
+        # INPUT 5: Action Behavioral Entropy (Inferred Exploration)
+        # --------------------------------------------------------
+        # Measure the randomness of choices on this step as a proxy for exploration
+        probs = arm_counts / n_alive
+        # Filter out zeros to avoid log(0) errors
+        nonzero_probs = probs[probs > 0]
+        entropy = -np.sum(nonzero_probs * np.log2(nonzero_probs))
+        max_entropy = np.log2(self.n_arms)
+        # High entropy (random choices) means high exploration. 
+        # Let's invert it so 1.0 means high optimization/exploitation, and 0.0 means pure random exploration.
+        exploitation_focus = 1.0 - (entropy / max_entropy) if max_entropy > 0 else 1.0
+
+        # Package cleanly into our new 5-Indicator Dashboard vector!
+        return torch.FloatTensor([
+            normalized_congestion,  # Input 1
+            survivor_ratio,         # Input 2
+            poorest_runway,         # Input 3
+            poverty_rate,           # Input 4
+            exploitation_focus      # Input 5
+        ])
 
     def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
         state_tensor = self._extract_state(observation, wealths, alive_mask)
