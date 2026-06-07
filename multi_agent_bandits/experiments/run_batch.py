@@ -2,7 +2,7 @@ import numpy as np
 import os
 import sys
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, SafetyNetGovernor, FreeMarketGovernor, DynamicTaxingGovernor
+from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, SafetyNetGovernor, FreeMarketGovernor, DynamicTaxingGovernor, NeuralPolicyGradientGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 
@@ -20,7 +20,9 @@ def run_batch_simulation(n_trials=100, steps=1000):
     # Redirect standard output momentarily to suppress individual experiment spam
     original_stdout = sys.stdout
     governor_name = "None (Baseline)"
-    governor = DynamicTaxingGovernor(n_agents=n_agents, learning_rate=0.05, death_penalty=0.0)
+
+    #governor = DynamicTaxingGovernor(n_agents=n_agents, learning_rate=0.05, death_penalty=0.0)
+    governor = NeuralPolicyGradientGovernor(n_agents=n_agents, max_steps=1000, learning_rate=0.0001, death_penalty=0.0)
 
     for trial in range(n_trials):
         # 1. ALWAYS initialize a completely fresh env, governor, and agents per trial
@@ -80,18 +82,29 @@ def run_batch_simulation(n_trials=100, steps=1000):
             batch_extinction_steps.append(extinction_step)
 
         # Progress indicator
+        # Inside run_batch.py trial loop tracking blocks
         if (trial + 1) % 10 == 0:
-            print(f"  -> Completed {trial + 1}/{n_trials} trials...")
+            print(f" -> Completed {trial + 1}/{n_trials} trials...")
             
-            # 1. Pull the percentage dictionaries for each phase
-            early_probs = governor.get_phase_probabilities(0)
-            mid_probs   = governor.get_phase_probabilities(1)
-            late_probs  = governor.get_phase_probabilities(2)
+            # Create a mock environment footprint to ask the brain for a prediction readout
+            mock_obs = [0] * (governor.n_agents * 2) + [1.0] * 30 # 30 arms at health 1.0
+            mock_wealths = [50.0] * governor.n_agents
+            mock_alive = [True] * governor.n_agents
             
-            # 2. Print them as beautifully aligned rows
-            print(f"     Early-Game (Wealth Build) -> Communist: {early_probs['Communist']}, Socialist: {early_probs['Socialist']}, Pigouvian: {early_probs['Pigouvian']}, FreeMarket: {early_probs['FreeMarket']}")
-            print(f"     Mid-Game   (Stabilization) -> Communist: {mid_probs['Communist']}, Socialist: {mid_probs['Socialist']}, Pigouvian: {mid_probs['Pigouvian']}, FreeMarket: {mid_probs['FreeMarket']}")
-            print(f"     Late-Game  (Crisis/Survival)-> Communist: {late_probs['Communist']}, Socialist: {late_probs['Socialist']}, Pigouvian: {late_probs['Pigouvian']}, FreeMarket: {late_probs['FreeMarket']}\n")
+            # 1. Query Pristine State (High health, complete parity)
+            pristine_probs = governor.get_live_probabilities(mock_obs, mock_wealths, mock_alive)
+            
+            # 2. Query Ecologically Stressed State (Low arm health)
+            stressed_obs = [0] * (governor.n_agents * 2) + [0.3] * 30 # Arms dropped to 30% capacity
+            stressed_probs = governor.get_live_probabilities(stressed_obs, mock_wealths, mock_alive)
+            
+            # 3. Query Wealth Inequality Inequality Crisis State (Wiped out bottom earners)
+            unequal_wealths = [500.0 if idx < 5 else 2.0 for idx in range(governor.n_agents)]
+            unequal_probs = governor.get_live_probabilities(mock_obs, unequal_wealths, mock_alive)
+            
+            print(f"     If Commons Pristine   -> Communist: {pristine_probs['Communist']}, Socialist: {pristine_probs['Socialist']}, Pigouvian: {pristine_probs['Pigouvian']}, FreeMarket: {pristine_probs['FreeMarket']}")
+            print(f"     If Resource Depleted  -> Communist: {stressed_probs['Communist']}, Socialist: {stressed_probs['Socialist']}, Pigouvian: {stressed_probs['Pigouvian']}, FreeMarket: {stressed_probs['FreeMarket']}")
+            print(f"     If Inequality Spikes  -> Communist: {unequal_probs['Communist']}, Socialist: {unequal_probs['Socialist']}, Pigouvian: {unequal_probs['Pigouvian']}, FreeMarket: {unequal_probs['FreeMarket']}\n")
 
     # --- Step 4: Compute Statistical Metrics ---
     avg_reward = np.mean(batch_total_rewards)

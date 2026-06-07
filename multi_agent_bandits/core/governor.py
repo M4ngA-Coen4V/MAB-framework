@@ -1,6 +1,14 @@
 import math
 import random
 
+import math
+import random
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+
 
 class LearningGovernorAI:
     """
@@ -710,6 +718,191 @@ class DynamicTaxingGovernor:
         logging wrappers.
         """
         probs = self._get_action_probabilities(state_idx)
+        return {
+            "Communist": f"{probs[0]*100:.1f}%",
+            "Socialist": f"{probs[1]*100:.1f}%",
+            "Pigouvian": f"{probs[2]*100:.1f}%",
+            "FreeMarket": f"{probs[3]*100:.1f}%"
+        }
+
+
+#NeuralPolicyGradientGovernor:
+
+
+class PolicyNetwork(nn.Module):
+    """
+    A lightweight Multi-Layer Perceptron (MLP) mapping continuous 
+    environmental state features to a Softmax policy distribution.
+    """
+    def __init__(self, input_dim, output_dim):
+        super(PolicyNetwork, self).__init__()
+        self.network = nn.Sequential(
+            nn.Linear(input_dim, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, output_dim),
+            nn.Softmax(dim=-1)  # Guarantees probabilities sum to cleanly 1.0
+        )
+        
+    def forward(self, x):
+        return self.network(x)
+
+
+class NeuralPolicyGradientGovernor:
+    """
+    Continuous Function Approximation Governor (Deep REINFORCE).
+    
+    Instead of hardcoded matrix rows/phases, this governor uses a Neural Network
+    to look at continuous features (Resource Health, Survivor Ratios, and Inequality)
+    and dynamically outputs blended macro-economic policies.
+    """
+    def __init__(self, n_agents=30, max_steps=1000, learning_rate=0.01, death_penalty=100.0, seed=None):
+        self.n_agents = n_agents
+        self.max_steps = max_steps
+        self.death_penalty = death_penalty
+        self.learning_rate = learning_rate
+        
+        # 1. Instantiate underlying structural macro-actions
+        from multi_agent_bandits.core.governor import (
+            CommunistGovernor, SocialistGovernor, PigouvianGovernor, FreeMarketGovernor
+        )
+        self.strategies = [
+            CommunistGovernor(n_agents=n_agents),
+            SocialistGovernor(n_agents=n_agents, tax_rate=0.3),
+            PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0),
+            FreeMarketGovernor(n_agents=n_agents)
+        ]
+        self.n_actions = len(self.strategies)
+        
+        # 2. Continuous State space features: [Avg Arm Health, Survivor Ratio, Gini Coefficient]
+        self.input_dim = 3
+        
+        # 3. Initialize PyTorch Brain & Adam Optimizer
+        if seed is not None:
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+            random.seed(seed)
+            
+        self.policy_net = PolicyNetwork(self.input_dim, self.n_actions)
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=self.learning_rate)
+        
+        # 4. Step buffers for backpropagation tracing
+        self.last_state_tensor = None
+        self.last_action_idx = None
+        self.last_action = None
+        
+        # Framework compatibility hooks
+        self.internal_step = 0 
+
+    def _calculate_gini(self, wealths):
+        """Calculates a quick continuous Gini coefficient tracking system inequality."""
+        array = np.array(wealths, dtype=np.float32)
+        if np.sum(array) == 0:
+            return 0.0
+        array += 1e-6  # stability epsilon
+        array = np.sort(array)
+        index = np.arange(1, array.shape[0] + 1)
+        n = array.shape[0]
+        return ((np.sum((2 * index - n - 1) * array)) / (n * np.sum(array)))
+
+    def _extract_continuous_state(self, observation, wealths, alive_mask):
+        """Transforms raw environment logs into a clean, normalized feature vector."""
+        # Extract arm health arrays appended to the end of your observation vectors
+        start_idx = self.n_agents * 2
+        arm_healths = observation[start_idx:]
+        
+        avg_health = np.mean(arm_healths) if arm_healths else 1.0
+        survivor_ratio = sum(alive_mask) / len(alive_mask) if alive_mask else 1.0
+        gini_inequality = self._calculate_gini(wealths)
+        
+        # Keep everything tightly bounded between 0.0 and 1.0 for stable gradients
+        state_vector = np.array([avg_health, survivor_ratio, gini_inequality], dtype=np.float32)
+        return torch.FloatTensor(state_vector)
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        """Pipes continuous conditions through the network and samples an economic policy."""
+        self.internal_step += 1
+        
+        # 1. Gather continuous state tensor
+        state_tensor = self._extract_continuous_state(observation, wealths, alive_mask)
+        self.last_state_tensor = state_tensor
+        
+        # 2. Feed forward through network to get Softmax probabilities
+        probs_tensor = self.policy_net(state_tensor)
+        probs = probs_tensor.detach().numpy()
+        
+        # 3. Categorical sampling based on network confidence
+        r = random.random()
+        cumulative_prob = 0.0
+        chosen_idx = 0
+        for idx, p in enumerate(probs):
+            cumulative_prob += p
+            if r <= cumulative_prob:
+                chosen_idx = idx
+                break
+                
+        self.last_action_idx = chosen_idx
+        
+        # 4. Delegate computation to the selected policy
+        selected_strategy = self.strategies[chosen_idx]
+        adjustments = selected_strategy.choose_action(
+            observation, choices, wealths, raw_rewards, alive_mask
+        )
+        
+        self.last_action = adjustments
+        return adjustments
+
+    def update(self, observation, action, reward, next_observation, done=False):
+        """Performs PyTorch automatic backpropagation with Entropy Regularization."""
+        if self.last_state_tensor is None or self.last_action_idx is None:
+            return
+
+        # 1. Scale step rewards down to prevent weight explosion
+        scaled_reward = reward / 100.0
+        
+        # 2. Re-evaluate computational graph
+        probs_tensor = self.policy_net(self.last_state_tensor)
+        chosen_prob = probs_tensor[self.last_action_idx]
+        
+        # 3. Calculate Policy Gradient Loss
+        pg_loss = -torch.log(chosen_prob + 1e-8) * scaled_reward
+        
+        # 🌟 4. NEW: Calculate Entropy Penalty to force exploration
+        # Math: H(p) = -sum(p * log(p))
+        entropy = -torch.sum(probs_tensor * torch.log(probs_tensor + 1e-8))
+        
+        # Entropy coefficient (0.01 - 0.05 is standard). 
+        # Higher numbers mean the network is forced to stay more curious.
+        entropy_coef = 0.02 
+        
+        # Total Loss: minimize policy loss while maximizing entropy (subtracting it)
+        total_loss = pg_loss - (entropy_coef * entropy)
+        
+        # 5. Run optimization sweep
+        self.optimizer.zero_grad()
+        total_loss.backward()
+        
+        # Gradient clipping prevents massive steps from freezing the network
+        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)
+        
+        self.optimizer.step()
+        
+        # Flush buffers
+        self.last_state_tensor = None
+        self.last_action_idx = None
+        self.last_action = None
+
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        """Evaluates system performance. Subtracts structural bankruptcy penalties."""
+        total_reward = sum(final_rewards)
+        return total_reward - (self.death_penalty * death_count)
+
+    def get_live_probabilities(self, sample_obs, sample_wealths, sample_alive_mask):
+        """Helper method allowing batch execution loggers to inspect current brain outputs."""
+        state_tensor = self._extract_continuous_state(sample_obs, sample_wealths, sample_alive_mask)
+        with torch.no_grad():
+            probs = self.policy_net(state_tensor).numpy()
         return {
             "Communist": f"{probs[0]*100:.1f}%",
             "Socialist": f"{probs[1]*100:.1f}%",
