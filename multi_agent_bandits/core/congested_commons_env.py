@@ -364,36 +364,20 @@ class DepletingCommonsEnvironment(Environment):
 
         self.wealth_history.append(list(self.agent_wealths))
 
-       # Governor utilities
+       # --- NEW PPO ENVIRONMENTAL RECORDING HOOK ---
         if self.governor:
-            # 1. Extract environment vitals based on your specific class tracking attributes
             current_arm_healths = list(self.arm_health) if hasattr(self, 'arm_health') else [1.0] * self.n_arms
             current_wealths = list(self.agent_wealths)
             
-            # 2. Extract the unblended vector tracking metrics
-            r_econ, r_eco, r_eq = self.governor.compute_vector_rewards(
-                final_rewards=final_rewards, 
-                arm_healths=current_arm_healths, 
-                wealths=current_wealths, 
-                death_count=death_count
-            )
-            
-            # Combined value fallback purely for logging metrics compatibility
-            governor_reward = r_econ + r_eco + r_eq
-            self.governor_reward_history.append(governor_reward)
-            
-            if hasattr(self.governor, "record_step"):
-                self.governor.record_step(observation, adjustments, adjustments, governor_reward, death_count=death_count)
-                
-        # --- FIXED ENVIRONMENT GOVERNOR MULTI-OBJECTIVE UPDATE HOOK ---
-        if self.governor and self.governor.last_action_idx is not None:
-            # Call the specialized MORL update routine using isolated channels
-            self.governor.update_morl(
-                r_economy=r_econ, 
-                r_ecology=r_eco, 
-                r_equality=r_eq
-            )
-        # --------------------------------------------------------------
+            # Step 1: Record data step-by-step into the PPO Trajectory Buffer
+            if hasattr(self.governor, "record_step_data"):
+                self.governor.record_step_data(
+                    gross_rewards=final_rewards,
+                    arm_healths=current_arm_healths,
+                    wealths=current_wealths,
+                    death_count=death_count
+                )
+        # ---------------------------------------------
         
         # Trigger reinforcement learning updates for agents
         for agent_idx, agent in enumerate(agents):

@@ -2,7 +2,7 @@ import numpy as np
 import os
 import sys
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, SafetyNetGovernor, FreeMarketGovernor, DynamicTaxingGovernor, NeuralPolicyGradientGovernor, MultiObjectiveNeuralGovernor
+from multi_agent_bandits.core.governor import PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, SafetyNetGovernor, FreeMarketGovernor, DynamicTaxingGovernor, NeuralPolicyGradientGovernor, MultiObjectiveNeuralGovernor, PPONeuralGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 
@@ -23,7 +23,8 @@ def run_batch_simulation(n_trials=100, steps=1000):
 
     #governor = DynamicTaxingGovernor(n_agents=n_agents, learning_rate=0.05, death_penalty=0.0)
     #governor = NeuralPolicyGradientGovernor(n_agents=n_agents, max_steps=1000, learning_rate=0.01, death_penalty=0.0)
-    governor = MultiObjectiveNeuralGovernor(n_agents=n_agents, learning_rate=0.005, entropy_coef=0.05, seed=None)   
+    #governor = MultiObjectiveNeuralGovernor(n_agents=n_agents, learning_rate=0.005, entropy_coef=0.05, seed=None)   
+    governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.005, clip_epsilon=0.2, ppo_epochs=4, seed=None)
 
     for trial in range(n_trials):
         # 1. ALWAYS initialize a completely fresh env, governor, and agents per trial
@@ -65,6 +66,10 @@ def run_batch_simulation(n_trials=100, steps=1000):
         finally:
             sys.stdout = original_stdout # Unmute immediately after step completion
 
+        # 3. 🌟 TRIGGER PPO WEIGHT OPTIMIZATION BEFORE RESUMING THE NEXT TRIAL
+        if governor is not None and hasattr(governor, "update_ppo"):
+            governor.update_ppo()
+
         # 3. Collect statistics from the finished trial
         trial_combined_reward = sum(runner.total_rewards)
         trial_combined_wealth = sum(env.agent_wealths)
@@ -88,7 +93,7 @@ def run_batch_simulation(n_trials=100, steps=1000):
             print(f" -> Completed {trial + 1}/{n_trials} trials...")
             
             # Create a mock environment footprint to ask the brain for a prediction readout
-            mock_obs = [0] * (governor.n_agents * 2) + [1.0] * 30 # 30 arms at health 1.0
+            mock_obs = [0] * (governor.n_agents * 2) + [1.0] * env.n_arms # 30 arms at health 1.0
             mock_wealths = [50.0] * governor.n_agents
             mock_alive = [True] * governor.n_agents
             

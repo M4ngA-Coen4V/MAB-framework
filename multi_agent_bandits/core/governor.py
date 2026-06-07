@@ -1132,3 +1132,225 @@ class MultiObjectiveNeuralGovernor:
             "Pigouvian": f"{probs[2]*100:.1f}%",
             "FreeMarket": f"{probs[3]*100:.1f}%"
         }
+    
+
+#PPONeuralGovernor
+
+class ActorCriticNetwork(nn.Module):
+    """Dual-headed neural network evaluating both policy actions and state values."""
+    def __init__(self, input_dim, output_dim):
+        super(ActorCriticNetwork, self).__init__()
+        # Shared feature extractor backbone
+        self.backbone = nn.Sequential(
+            nn.Linear(input_dim, 32),
+            nn.Tanh(),
+            nn.Linear(32, 32),
+            nn.Tanh()
+        )
+        # Actor Head: Outputs raw strategy logits
+        self.actor_head = nn.Linear(32, output_dim)
+        # Critic Head: Outputs a single expected value scalar V(s)
+        self.critic_head = nn.Linear(32, 1)
+
+    def forward(self, state):
+        features = self.backbone(state)
+        logits = self.actor_head(features)
+        value = self.critic_head(features)
+        return logits, value
+
+
+class PPONeuralGovernor:
+    def __init__(self, n_agents=30, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, batch_size=32, seed=None):
+        self.n_agents = n_agents
+        self.clip_epsilon = clip_epsilon
+        self.ppo_epochs = ppo_epochs
+        self.batch_size = batch_size
+        
+        if seed is not None:
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+
+        # Initialize core macro strategies
+        from multi_agent_bandits.core.governor import (
+            CommunistGovernor, SocialistGovernor, PigouvianGovernor, FreeMarketGovernor
+        )
+        self.strategies = [
+            CommunistGovernor(n_agents=n_agents),
+            SocialistGovernor(n_agents=n_agents, tax_rate=0.5),
+            PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0),
+            FreeMarketGovernor(n_agents=n_agents)
+        ]
+        self.n_actions = len(self.strategies)
+        
+        # Continuous state inputs: [Avg Arm Health, Survivor Ratio, Gini Coefficient]
+        self.input_dim = 3
+        self.network = ActorCriticNetwork(self.input_dim, self.n_actions)
+        self.optimizer = optim.Adam(self.network.parameters(), lr=learning_rate)
+
+        # 📥 PPO TRAJECTORY MEMORY BUFFER
+        self.buffer_states = []
+        self.buffer_actions = []
+        self.buffer_log_probs = []
+        self.buffer_rewards = []
+        
+        # Temporary holding parameters for the current single step
+        self.current_state_tensor = None
+        self.current_action_idx = None
+        self.current_log_prob = None
+
+    def _calculate_gini(self, wealths):
+        array = np.array(wealths, dtype=np.float32)
+        if np.sum(array) == 0:
+            return 0.0
+        array += 1e-6
+        array = np.sort(array)
+        index = np.arange(1, array.shape[0] + 1)
+        return (np.sum((2 * index - len(array) - 1) * array)) / (len(array) * np.sum(array))
+
+    def _extract_state(self, observation, wealths, alive_mask):
+        start_idx = self.n_agents * 2
+        arm_healths = observation[start_idx : start_idx + self.n_actions] 
+        avg_health = np.mean(arm_healths) if len(arm_healths) > 0 else 1.0
+        survivor_ratio = sum(alive_mask) / len(alive_mask) if alive_mask else 1.0
+        gini = self._calculate_gini(wealths)
+        return torch.FloatTensor([avg_health, survivor_ratio, gini])
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        state_tensor = self._extract_state(observation, wealths, alive_mask)
+        self.current_state_tensor = state_tensor
+
+        with torch.no_grad():
+            logits, _ = self.network(state_tensor)
+            probs = torch.softmax(logits, dim=-1)
+            
+            # Formulate categorical distribution for valid sampling & log_prob extraction
+            dist = torch.distributions.Categorical(probs)
+            action_tensor = dist.sample()
+            
+        chosen_idx = action_tensor.item()
+        self.current_action_idx = chosen_idx
+        self.current_log_prob = dist.log_prob(action_tensor).item()
+
+        return self.strategies[chosen_idx].choose_action(observation, choices, wealths, raw_rewards, alive_mask)
+
+    def record_step_data(self, gross_rewards, arm_healths, wealths, death_count):
+        """Calculates a robust, zero-centered scalar reward and saves the transition to memory."""
+        if self.current_state_tensor is None:
+            return
+
+        # Calibrated baseline reward system (Max ~99.3, Avg ~52.0)
+        gross_utility = sum(gross_rewards)
+        scaled_econ = (gross_utility - 52.0) / 40.0
+        r_economy = np.tanh(scaled_econ - (death_count * 0.25))
+
+        avg_health = np.mean(arm_healths) if len(arm_healths) > 0 else 1.0
+        r_ecology = 1.0 if avg_health >= 0.75 else max(-1.0, 1.0 - ((0.75 - avg_health) * 4.0))
+
+        gini = self._calculate_gini(wealths)
+        r_equality = 1.0 if gini <= 0.30 else max(-1.0, 1.0 - ((gini - 0.30) * 5.0))
+
+        # Balanced scalar combination for PPO maximization tracking
+        step_reward = (0.50 * r_economy) + (0.25 * r_ecology) + (0.25 * r_equality)
+
+        # Append variables directly into trajectory lists
+        self.buffer_states.append(self.current_state_tensor)
+        self.buffer_actions.append(self.current_action_idx)
+        self.buffer_log_probs.append(self.current_log_prob)
+        self.buffer_rewards.append(step_reward)
+
+        # Clear step placeholders
+        self.current_state_tensor = None
+        self.current_action_idx = None
+        self.current_log_prob = None
+
+    def update_ppo(self):
+        """
+        🔥 THE PPO OPTIMIZATION ENGINE
+        Processes buffered trajectories, computes advantages, and safely updates networks.
+        """
+        if len(self.buffer_states) == 0:
+            return
+
+        # 1. Convert memory lists into comprehensive PyTorch training tensors
+        states = torch.stack(self.buffer_states)
+        actions = torch.LongTensor(self.buffer_actions)
+        old_log_probs = torch.FloatTensor(self.buffer_log_probs)
+        rewards = self.buffer_rewards
+        
+        # 2. Compute discounted rewards-to-go (Targets for Critic evaluation)
+        discounted_returns = []
+        discounted_sum = 0
+        gamma = 0.99  # Long-term economic discount factor
+        for r in reversed(rewards):
+            discounted_sum = r + gamma * discounted_sum
+            discounted_returns.insert(0, discounted_sum)
+            
+        returns = torch.FloatTensor(discounted_returns)
+        # Normalize returns for training variance control
+        returns = (returns - returns.mean()) / (returns.std() + 1e-8)
+
+        # 3. PPO Optimization Epoch Loop
+        for _ in range(self.ppo_epochs):
+            # Generate random batch permutations for stable gradient updates
+            permutation = torch.randperm(states.size(0))
+            for i in range(0, states.size(0), self.batch_size):
+                indices = permutation[i : i + self.batch_size]
+                if len(indices) == 0:
+                    continue
+
+                b_states = states[indices]
+                b_actions = actions[indices]
+                b_old_log_probs = old_log_probs[indices]
+                b_returns = returns[indices]
+
+                # Evaluate current networks status
+                logits, state_values = self.network(b_states)
+                state_values = state_values.squeeze(-1)
+                
+                probs = torch.softmax(logits, dim=-1)
+                dist = torch.distributions.Categorical(probs)
+                
+                # Extract new log probabilities and entropy tracking profiles
+                new_log_probs = dist.log_prob(b_actions)
+                entropy = dist.entropy().mean()
+
+                # Calculate localized target Advantage signals
+                advantages = b_returns - state_values.detach()
+
+                # Step C: The Probability Ratio r_t(theta)
+                ratios = torch.exp(new_log_probs - b_old_log_probs)
+
+                # Step D: Clipped Objective Mathematical Minimization
+                surr1 = ratios * advantages
+                surr2 = torch.clamp(ratios, 1.0 - self.clip_epsilon, 1.0 + self.clip_epsilon) * advantages
+                actor_loss = -torch.min(surr1, surr2).mean()
+
+                # Critic Loss evaluated via Mean Squared Error against raw target returns
+                critic_loss = nn.MSELoss()(state_values, b_returns)
+
+                # Aggregate combined objective loss with an entropy bonus to support exploration
+                total_loss = actor_loss + (0.5 * critic_loss) - (0.01 * entropy)
+
+                # Execute bounded optimization pass
+                self.optimizer.zero_grad()
+                total_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=0.5)
+                self.optimizer.step()
+
+        # 4. Clear the memory buffer for the next trajectory run
+        self.buffer_states.clear()
+        self.buffer_actions.clear()
+        self.buffer_log_probs.clear()
+        self.buffer_rewards.clear()
+
+    def get_live_probabilities(self, sample_obs, sample_wealths, sample_alive_mask):
+        state_tensor = self._extract_state(sample_obs, sample_wealths, sample_alive_mask)
+        with torch.no_grad():
+            logits, _ = self.network(state_tensor)
+            probs = torch.softmax(logits, dim=-1).numpy()
+        return {
+            "Communist": f"{probs[0]*100:.1f}%",
+            "Socialist": f"{probs[1]*100:.1f}%",
+            "Pigouvian": f"{probs[2]*100:.1f}%",
+            "FreeMarket": f"{probs[3]*100:.1f}%"
+        }
