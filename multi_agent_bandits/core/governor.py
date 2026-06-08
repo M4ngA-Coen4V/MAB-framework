@@ -1185,13 +1185,25 @@ class PPONeuralGovernor:
         # Continuous state inputs: [Congestion, Survivor Ratio, Poorest Runway, Poverty Rate, Exploitation Focus]
         self.input_dim = 5
         self.network = ActorCriticNetwork(self.input_dim, self.n_actions)
-        self.optimizer = optim.Adam(self.network.parameters(), lr=learning_rate)
+        
+        # --- PARAMETER-SPECIFIC LEARNING RATES ---
+        # We split the network parameters into distinct learning speed groups:
+        self.optimizer = optim.Adam([
+            # 1. Shared Backbone & Actor Head: Slower learning rate for policy stability
+            {'params': self.network.backbone.parameters(), 'lr': learning_rate},
+            {'params': self.network.actor_head.parameters(), 'lr': learning_rate},
+            
+            # 2. Critic Head: Accelerated learning rate to chase volatile environmental updates
+            {'params': self.network.critic_head.parameters(), 'lr': learning_rate * 3.0} 
+        ])
+        # ------------------------------------------------
 
         # 📥 PPO TRAJECTORY MEMORY BUFFER
         self.buffer_states = []
         self.buffer_actions = []
         self.buffer_log_probs = []
         self.buffer_rewards = []
+        self.buffer_values = []
         
         # Temporary holding parameters for the current single step
         self.current_state_tensor = None
@@ -1202,6 +1214,7 @@ class PPONeuralGovernor:
         self.input_layer_history = []
         self.output_layer_history = []
         self.reward_layer_history = []
+        self.ppo_diagnostics_history = []
 
     def _calculate_gini(self, wealths):
         # Convert to numpy array
@@ -1291,7 +1304,7 @@ class PPONeuralGovernor:
         self.current_state_tensor = state_tensor
 
         with torch.no_grad():
-            logits, _ = self.network(state_tensor)
+            logits, value = self.network(state_tensor)
             probs = torch.softmax(logits, dim=-1)
             
             # Formulate categorical distribution for valid sampling & log_prob extraction
@@ -1301,6 +1314,7 @@ class PPONeuralGovernor:
         chosen_idx = action_tensor.item()
         self.current_action_idx = chosen_idx
         self.current_log_prob = dist.log_prob(action_tensor).item()
+        self.current_value = value.item()
 
         # logging
         with torch.no_grad():
@@ -1344,6 +1358,7 @@ class PPONeuralGovernor:
         self.buffer_actions.append(self.current_action_idx)
         self.buffer_log_probs.append(self.current_log_prob)
         self.buffer_rewards.append(step_reward)
+        self.buffer_values.append(self.current_value)
 
         #logging
         if self.current_state_tensor is not None:
@@ -1367,6 +1382,7 @@ class PPONeuralGovernor:
         """
         🔥 THE PPO OPTIMIZATION ENGINE
         Processes buffered trajectories, computes advantages, and safely updates networks.
+        Tracks internal Actor/Critic diagnostic health properties.
         """
         if len(self.buffer_states) == 0:
             return
@@ -1375,6 +1391,7 @@ class PPONeuralGovernor:
         states = torch.stack(self.buffer_states)
         actions = torch.LongTensor(self.buffer_actions)
         old_log_probs = torch.FloatTensor(self.buffer_log_probs)
+        old_values = torch.FloatTensor(self.buffer_values)
         rewards = self.buffer_rewards
         
         # 2. Compute discounted rewards-to-go (Targets for Critic evaluation)
@@ -1389,6 +1406,12 @@ class PPONeuralGovernor:
         # Normalize returns for training variance control
         returns = (returns - returns.mean()) / (returns.std() + 1e-8)
 
+        # Temp diagnostic collectors for tracking metrics across this update session
+        epoch_actor_losses = []
+        epoch_critic_losses = []
+        epoch_entropies = []
+        epoch_kl_divergences = []
+
         # 3. PPO Optimization Epoch Loop
         for _ in range(self.ppo_epochs):
             # Generate random batch permutations for stable gradient updates
@@ -1401,6 +1424,7 @@ class PPONeuralGovernor:
                 b_states = states[indices]
                 b_actions = actions[indices]
                 b_old_log_probs = old_log_probs[indices]
+                b_old_values = old_values[indices]
                 b_returns = returns[indices]
 
                 # Evaluate current networks status
@@ -1426,22 +1450,68 @@ class PPONeuralGovernor:
                 actor_loss = -torch.min(surr1, surr2).mean()
 
                 # Critic Loss evaluated via Mean Squared Error against raw target returns
-                critic_loss = nn.MSELoss()(state_values, b_returns)
+                # Penalize the Critic if it jumps too far from its original baseline guess
+                value_pred_clipped = b_old_values + torch.clamp(
+                    state_values - b_old_values, 
+                    -self.clip_epsilon, 
+                    self.clip_epsilon
+                )
+                
+                critic_loss_raw = (state_values - b_returns) ** 2
+                critic_loss_clipped = (value_pred_clipped - b_returns) ** 2
+                
+                # Take the maximum structural loss to be safe against variance drops
+                critic_loss = 0.5 * torch.max(critic_loss_raw, critic_loss_clipped).mean()
+                # -----------------------------------
 
-                # Aggregate combined objective loss with an entropy bonus to support exploration
-                total_loss = actor_loss + (0.5 * critic_loss) - (0.01 * entropy)
+                # Calculate Approximate KL Divergence for safety/policy-shock tracking
+                with torch.no_grad():
+                    # Standard formulation: KL(old || new) ≈ ((ratio - 1) - log(ratio))
+                    approx_kl = ((ratios - 1) - torch.log(ratios)).mean().item()
+
+                # Aggregate combined objective loss with full critic scaling since we separated the learning rates
+                total_loss = actor_loss + critic_loss - (0.01 * entropy)
 
                 # Execute bounded optimization pass
                 self.optimizer.zero_grad()
                 total_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=0.5)
+                torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
                 self.optimizer.step()
 
-        # 4. Clear the memory buffer for the next trajectory run
+                # Append metrics for this mini-batch update step
+                epoch_actor_losses.append(actor_loss.item())
+                epoch_critic_losses.append(critic_loss.item())
+                epoch_entropies.append(entropy.item())
+                epoch_kl_divergences.append(approx_kl)
+
+        # 4. Global Trajectory Diagnostic Evaluation (Post-Epochs)
+        with torch.no_grad():
+            _, final_values = self.network(states)
+            final_values = final_values.squeeze(-1).cpu().numpy()
+            raw_returns = returns.cpu().numpy()
+            
+            # Compute Explained Variance: EV = 1 - Var(y - y_hat) / Var(y)
+            return_variance = np.var(raw_returns)
+            explained_variance = (
+                1.0 - (np.var(raw_returns - final_values) / return_variance)
+                if return_variance > 0 else 0.0
+            )
+
+        # Log compiled structural metrics to class container for visual script execution
+        self.ppo_diagnostics_history.append({
+            "value_loss": np.mean(epoch_critic_losses),
+            "policy_loss": np.mean(epoch_actor_losses),
+            "entropy": np.mean(epoch_entropies),
+            "kl_divergence": np.mean(epoch_kl_divergences),
+            "explained_variance": explained_variance
+        })
+
+        # 5. Clear the memory buffer for the next trajectory run
         self.buffer_states.clear()
         self.buffer_actions.clear()
         self.buffer_log_probs.clear()
         self.buffer_rewards.clear()
+        self.buffer_values.clear()
 
     def get_live_probabilities(self, sample_obs, sample_wealths, sample_alive_mask):
         state_tensor = self._extract_state(sample_obs, sample_wealths, sample_alive_mask)

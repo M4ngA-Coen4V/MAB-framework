@@ -140,6 +140,86 @@ def plot_reward_decomposition_isolated(governor, save_path="test_PPO/reward_deco
     
     print(f"📊 Isolated Reward Decomposition Plot successfully saved to: '{save_path}'")
 
+def plot_actor_critic_diagnostics(diagnostics_history, save_dir="./test_PPO"):
+    """
+    Generates a 2x2 multi-panel diagnostic dashboard tracking 
+    the internal optimization health of the Actor and Critic networks.
+    """
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Extract data series
+    trials = np.arange(1, len(diagnostics_history) + 1)
+    v_loss = [d["value_loss"] for d in diagnostics_history]
+    p_loss = [d["policy_loss"] for d in diagnostics_history]
+    entropy = [d["entropy"] for d in diagnostics_history]
+    kl_div = [d["kl_divergence"] for d in diagnostics_history]
+    exp_var = [d["explained_variance"] for d in diagnostics_history]
+    
+    # Initialize the academic 2x2 grid style dashboard
+    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle("PPO Governor Network Internal Health Dashboard", fontsize=16, fontweight='bold', y=0.96)
+    
+    # --------------------------------------------------------
+    # Panel 1: Critic Value Loss & Predicted Variance Accuracy
+    # --------------------------------------------------------
+    ax1 = axs[0, 0]
+    color = 'tab:red'
+    ax1.set_xlabel('Training Iteration (Updates)', fontweight='bold')
+    ax1.set_ylabel('Critic MSE Value Loss', color=color, fontweight='bold')
+    ax1.plot(trials, v_loss, color=color, alpha=0.8, linewidth=2, label="Value Loss")
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax1.grid(True, linestyle="--", alpha=0.5)
+    
+    # Instantiate a second y-axis sharing the same x-axis for Explained Variance
+    ax1_twin = ax1.twinx()
+    color = 'tab:green'
+    ax1_twin.set_ylabel('Explained Variance (Target: 1.0)', color=color, fontweight='bold')
+    ax1_twin.plot(trials, exp_var, color=color, linestyle=":", alpha=0.9, linewidth=2, label="Explained Var")
+    ax1_twin.tick_params(axis='y', labelcolor=color)
+    ax1_twin.axhline(0.0, color='black', linestyle='-', alpha=0.3) # 0.0 threshold anchor
+    ax1.set_title("Critic Performance Evaluation", fontsize=12, fontweight='bold')
+
+    # --------------------------------------------------------
+    # Panel 2: Policy Exploration Entropy (The System Urgency Gauge)
+    # --------------------------------------------------------
+    ax2 = axs[0, 1]
+    ax2.plot(trials, entropy, color='purple', linewidth=2, label="Action Entropy")
+    ax2.set_xlabel('Training Iteration (Updates)', fontweight='bold')
+    ax2.set_ylabel('Shannon Entropy H(π)', fontweight='bold')
+    ax2.set_title("Actor Exploration / Policy Randomness", fontsize=12, fontweight='bold')
+    ax2.grid(True, linestyle="--", alpha=0.5)
+    
+    # --------------------------------------------------------
+    # Panel 3: Step Policy Update Distance (KL Divergence Safe-Zones)
+    # --------------------------------------------------------
+    ax3 = axs[1, 0]
+    ax3.plot(trials, kl_div, color='darkorange', linewidth=2, label="Approx. KL")
+    ax3.set_xlabel('Training Iteration (Updates)', fontweight='bold')
+    ax3.set_ylabel('Approximate KL Divergence', fontweight='bold')
+    ax3.set_title("Policy Update Shift Distance (KL)", fontsize=12, fontweight='bold')
+    ax3.grid(True, linestyle="--", alpha=0.5)
+    # Highlight a standard target safety roof line (typically around 0.015 - 0.03)
+    ax3.axhline(0.02, color='red', linestyle='--', alpha=0.7, label='Target Constraint Ceiling')
+    ax3.legend(loc='upper right')
+
+    # --------------------------------------------------------
+    # Panel 4: Policy Optimization Step Gain Trend
+    # --------------------------------------------------------
+    ax4 = axs[1, 1]
+    ax4.plot(trials, p_loss, color='dodgerblue', linewidth=2, label="Policy Loss")
+    ax4.set_xlabel('Training Iteration (Updates)', fontweight='bold')
+    ax4.set_ylabel('Surrogate Objective Loss', fontweight='bold')
+    ax4.set_title("Actor Policy Advantage Gradient Direction", fontsize=12, fontweight='bold')
+    ax4.grid(True, linestyle="--", alpha=0.5)
+    ax4.axhline(0.0, color='black', linestyle='-', alpha=0.3)
+
+    # Clean layout wrapping up
+    plt.tight_layout(rect=[0, 0.03, 1, 0.93])
+    save_path = os.path.join(save_dir, "actor_critic_health.png")
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+    print(f"📊 Internal Actor-Critic structural dashboard saved to: '{save_path}'")
+
 
 #run batch
 def run_phase(governor, n_trials, steps, n_agents, is_training=True):
@@ -225,7 +305,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
 def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     n_agents = 30
     
-    governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, seed=None)   
+    governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, batch_size=64, seed=None)   
     governor_name = governor.__class__.__name__ if governor is not None else "None (Baseline)"
     is_learning_model = hasattr(governor, "update_ppo")
 
@@ -238,6 +318,14 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     print(f"🚀 PHASE 1: Training {governor_name} over {train_n_trials} trials...\n")
     train_metrics = run_phase(governor, train_n_trials, steps, n_agents, is_training=True)
     print("✅ Training complete. Network weights locked.\n")
+
+    # ---------------------------------------------------------------------
+    # 📊 NEW: PLOT ACTOR-CRITIC INTERNAL HEALTH
+    # ---------------------------------------------------------------------
+    print("📊 Generating Actor-Critic structural health diagnostic dashboard...")
+
+    # Pass the accumulated diagnostics array from inside your governor instance
+    plot_actor_critic_diagnostics(diagnostics_history=governor.ppo_diagnostics_history, save_dir="./test_PPO")
 
     # ========================================================
     # PHASE 2: TESTING / EVALUATION BLOCK (100 Trials)
@@ -347,4 +435,4 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     print("🎉 Visual diagnostic complete! Check your new './test_PPO' directory for the PNG outputs.")
 
 if __name__ == "__main__":
-    run_batch_simulation(train_n_trials=300, test_n_trials=100, steps=1000)
+    run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000)
