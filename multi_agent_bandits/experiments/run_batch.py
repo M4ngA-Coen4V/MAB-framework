@@ -435,4 +435,4 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     print("🎉 Visual diagnostic complete! Check your new './test_PPO' directory for the PNG outputs.")
 
 if __name__ == "__main__":
-    run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000)
+    run_batch_simulation(train_n_trials=300, test_n_trials=100, steps=1000)

@@ -1140,17 +1140,17 @@ class ActorCriticNetwork(nn.Module):
     """Dual-headed neural network evaluating both policy actions and state values."""
     def __init__(self, input_dim, output_dim):
         super(ActorCriticNetwork, self).__init__()
-        # Shared feature extractor backbone
+        # Backbone is now deeper and wider for better pattern recognition
         self.backbone = nn.Sequential(
-            nn.Linear(input_dim, 32),
+            nn.Linear(input_dim, 64),
             nn.Tanh(),
-            nn.Linear(32, 32),
+            nn.Linear(64, 64),
+            nn.Tanh(),
+            nn.Linear(64, 64),
             nn.Tanh()
         )
-        # Actor Head: Outputs raw strategy logits
-        self.actor_head = nn.Linear(32, output_dim)
-        # Critic Head: Outputs a single expected value scalar V(s)
-        self.critic_head = nn.Linear(32, 1)
+        self.actor_head = nn.Linear(64, output_dim)
+        self.critic_head = nn.Linear(64, 1)
 
     def forward(self, state):
         features = self.backbone(state)
@@ -1183,7 +1183,8 @@ class PPONeuralGovernor:
         self.n_actions = len(self.strategies)
         
         # Continuous state inputs: [Congestion, Survivor Ratio, Poorest Runway, Poverty Rate, Exploitation Focus]
-        self.input_dim = 5
+        self.input_dim = 10
+        self.last_state_vector = torch.zeros(5)
         self.network = ActorCriticNetwork(self.input_dim, self.n_actions)
         
         # --- PARAMETER-SPECIFIC LEARNING RATES ---
@@ -1290,14 +1291,20 @@ class PPONeuralGovernor:
         # Let's invert it so 1.0 means high optimization/exploitation, and 0.0 means pure random exploration.
         exploitation_focus = 1.0 - (entropy / max_entropy) if max_entropy > 0 else 1.0
 
-        # Package cleanly into our new 5-Indicator Dashboard vector!
-        return torch.FloatTensor([
-            normalized_congestion,  # Input 1
-            survivor_ratio,         # Input 2
-            poorest_runway,         # Input 3
-            poverty_rate,           # Input 4
-            exploitation_focus      # Input 5
+        # --------------------------------------------------------
+        # INPUT 6-10: velocity tracking for all 5 indicators (Current - Previous)
+        # --------------------------------------------------------
+        current_indicators = torch.FloatTensor([
+            normalized_congestion, survivor_ratio, poorest_runway, 
+            poverty_rate, exploitation_focus
         ])
+        
+        # Calculate velocity (Change = Current - Previous)
+        velocity = current_indicators - self.last_state_vector
+        self.last_state_vector = current_indicators.clone() # Update for next time
+
+        # Concatenate 5 base + 5 velocity = 10 inputs
+        return torch.cat([current_indicators, velocity])
 
     def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
         state_tensor = self._extract_state(observation, wealths, alive_mask)
