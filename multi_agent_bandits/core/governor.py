@@ -1222,26 +1222,30 @@ class MultiObjectiveNeuralGovernor:
 #PPONeuralGovernor
 
 class ActorCriticNetwork(nn.Module):
-    """Dual-headed neural network evaluating both policy actions and state values."""
-    def __init__(self, input_dim, output_dim):
+    """
+    Factorized Actor-Critic: The Critic head is split into N agent-specific heads 
+    to enable individual contribution tracking.
+    """
+    def __init__(self, input_dim, output_dim, n_agents):
         super(ActorCriticNetwork, self).__init__()
-        # Backbone is now deeper and wider for better pattern recognition
+        self.n_agents = n_agents
         self.backbone = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.Tanh(),
-            nn.Linear(64, 64),
-            nn.Tanh(),
-            nn.Linear(64, 64),
-            nn.Tanh()
+            nn.Linear(input_dim, 64), nn.Tanh(),
+            nn.Linear(64, 64), nn.Tanh(),
+            nn.Linear(64, 64), nn.Tanh()
         )
         self.actor_head = nn.Linear(64, output_dim)
-        self.critic_head = nn.Linear(64, 1)
+        # Factorized Critic: One head per agent
+        self.agent_critic_heads = nn.ModuleList([nn.Linear(64, 1) for _ in range(n_agents)])
 
     def forward(self, state):
         features = self.backbone(state)
         logits = self.actor_head(features)
-        value = self.critic_head(features)
-        return logits, value
+        # Individual agent values [batch, n_agents]
+        agent_values = torch.cat([head(features) for head in self.agent_critic_heads], dim=-1)
+        # Global value for PPO Advantage
+        total_value = agent_values.sum(dim=-1, keepdim=True)
+        return logits, total_value, agent_values
 
 
 class PPONeuralGovernor:
@@ -1257,7 +1261,7 @@ class PPONeuralGovernor:
         
         self.max_steps = 50  # Start with short 50-step seasons
         self.success_counter = 0
-        self.promotion_threshold = 50 # Promote after 50 "good" episodes
+        self.promotion_threshold = 3 # Promote after 3 "good" episodes
 
         # Initialize core macro strategies
         from multi_agent_bandits.core.governor import (
@@ -1274,17 +1278,15 @@ class PPONeuralGovernor:
         # Continuous state inputs: [Congestion, Survivor Ratio, Poorest Runway, Poverty Rate, Exploitation Focus]
         self.input_dim = 10
         self.last_state_vector = torch.zeros(5)
-        self.network = ActorCriticNetwork(self.input_dim, self.n_actions)
+        self.network = ActorCriticNetwork(self.input_dim, self.n_actions, n_agents)
         
         # --- PARAMETER-SPECIFIC LEARNING RATES ---
         # We split the network parameters into distinct learning speed groups:
         self.optimizer = optim.Adam([
-            # 1. Shared Backbone & Actor Head: Slower learning rate for policy stability
             {'params': self.network.backbone.parameters(), 'lr': learning_rate},
             {'params': self.network.actor_head.parameters(), 'lr': learning_rate},
-            
-            # 2. Critic Head: Accelerated learning rate to chase volatile environmental updates
-            {'params': self.network.critic_head.parameters(), 'lr': learning_rate * 3.0} 
+            # Accelerate the factorized heads specifically
+            {'params': self.network.agent_critic_heads.parameters(), 'lr': learning_rate * 3.0} 
         ])
         # ------------------------------------------------
 
@@ -1392,6 +1394,13 @@ class PPONeuralGovernor:
         velocity = current_indicators - self.last_state_vector
         self.last_state_vector = current_indicators.clone() # Update for next time
 
+        #plotting input layer history
+        save_values = current_indicators.tolist()
+        # WRITE to the internal register immediately
+        if not hasattr(self, "input_layer_history"):
+            self.input_layer_history = []
+        self.input_layer_history.append(save_values)
+
         # Concatenate 5 base + 5 velocity = 10 inputs
         return torch.cat([current_indicators, velocity])
 
@@ -1400,7 +1409,8 @@ class PPONeuralGovernor:
         self.current_state_tensor = state_tensor
 
         with torch.no_grad():
-            logits, value = self.network(state_tensor)
+            # CHANGE THIS LINE to capture all three outputs
+            logits, total_value, agent_values = self.network(state_tensor)
             probs = torch.softmax(logits, dim=-1)
             
             # Formulate categorical distribution for valid sampling & log_prob extraction
@@ -1410,11 +1420,11 @@ class PPONeuralGovernor:
         chosen_idx = action_tensor.item()
         self.current_action_idx = chosen_idx
         self.current_log_prob = dist.log_prob(action_tensor).item()
-        self.current_value = value.item()
+        self.current_value = total_value.item()
 
         # logging
         with torch.no_grad():
-            logits, _ = self.network(state_tensor)
+            logits, total_value, agent_values = self.network(state_tensor)
             probs = torch.softmax(logits, dim=-1).cpu().numpy().tolist() # Shape: [4]
         # Append the raw 4-strategy probability distribution row
         self.output_layer_history.append(probs)
@@ -1422,57 +1432,45 @@ class PPONeuralGovernor:
         return self.strategies[chosen_idx].choose_action(observation, choices, wealths, raw_rewards, alive_mask)
 
     def record_step_data(self, gross_rewards, arm_healths, wealths, death_count):
-        """Calculates a robust, zero-centered scalar reward and saves the transition to memory."""
-        if self.current_state_tensor is None:
-            return
+        if self.current_state_tensor is None: return
+        
+        # Dynamic Social Contract
+        progress = min(self.max_steps / 1000.0, 1.0)
+        
+        r_economy = np.tanh(((sum(gross_rewards) - 52.0) / 40.0) - (death_count * 0.25))
+        survivor_ratio = np.sum(np.array(wealths) > 0.0) / self.n_agents
+        r_ecology = (1.0 if np.mean(arm_healths) >= 0.75 else max(-1.0, 1.0 - ((0.75 - np.mean(arm_healths)) * 4.0))) * survivor_ratio
+        r_equality = (1.0 if self._calculate_gini(wealths) <= 0.30 else max(-1.0, 1.0 - ((self._calculate_gini(wealths) - 0.30) * 5.0))) * survivor_ratio
+        
+        # Weighted composite: starts with high equity/ecology focus, ends with higher economic focus
+        step_reward = (0.2 + 0.5 * progress) * r_economy + \
+                      (0.4 - 0.15 * progress) * r_ecology + \
+                      (0.4 - 0.35 * progress) * r_equality - (2.0 * death_count)
+        
+        #testing: isolate economy reward to see if it can learn with a single signal
+        step_reward = r_economy
 
-        # Calibrated baseline reward system (Max ~99.3, Avg ~52.0)
-        gross_utility = sum(gross_rewards)
-        scaled_econ = (gross_utility - 52.0) / 40.0
-        r_economy = np.tanh(scaled_econ - (death_count * 0.25))
+        #plotting reward layer history
+        # 2. ADD THIS: Create the register if it doesn't exist
+        if not hasattr(self, "reward_layer_history"):
+            self.reward_layer_history = []
+            
+        # 3. ADD THIS: Store the composite AND the components as a list
+        # The plotter expects: [Composite, r_economy, r_ecology, r_equality]
+        self.reward_layer_history.append([
+            step_reward, 
+            r_economy, 
+            r_ecology, 
+            r_equality
+        ])
 
-        avg_health = np.mean(arm_healths) if len(arm_healths) > 0 else 1.0
-        r_ecology = 1.0 if avg_health >= 0.75 else max(-1.0, 1.0 - ((0.75 - avg_health) * 4.0))
-
-        gini = self._calculate_gini(wealths)
-        r_equality = 1.0 if gini <= 0.30 else max(-1.0, 1.0 - ((gini - 0.30) * 5.0))
-
-        # Scale the ideal reward baselines by the percentage of living agents
-        # 1. Convert to a numpy array for boolean masking
-        wealths_array = np.array(wealths, dtype=np.float32)
-        # 2. Compute the true survivor ratio (only agents with positive net worth)
-        active_survivors = np.sum(wealths_array > 0.0)
-        survivor_ratio = active_survivors / 30.0  # Assumes 30 is your max capacity
-        scaled_r_ecology = r_ecology * survivor_ratio
-        scaled_r_equality = r_equality * survivor_ratio
-
-        # Balanced scalar combination for PPO maximization tracking
-        step_reward = (0.5 * r_economy) + (0.25 * scaled_r_ecology) + (0.25 * scaled_r_equality)
-
-        # Append variables directly into trajectory lists
         self.buffer_states.append(self.current_state_tensor)
         self.buffer_actions.append(self.current_action_idx)
         self.buffer_log_probs.append(self.current_log_prob)
         self.buffer_rewards.append(step_reward)
         self.buffer_values.append(self.current_value)
-
-        #logging
-        if self.current_state_tensor is not None:
-            # Convert the PyTorch tensor to a standard Python list of 5 floats
-            self.input_layer_history.append(self.current_state_tensor.cpu().numpy().tolist())
         
-        # logging
-        self.reward_layer_history.append([
-            step_reward,  # Index 0
-            r_economy,    # Index 1
-            scaled_r_ecology,  # Index 2
-            scaled_r_equality   # Index 3
-        ])
-
-        # Clear step placeholders
-        self.current_state_tensor = None
-        self.current_action_idx = None
-        self.current_log_prob = None
+        self.current_state_tensor = None # Clear placeholder
 
     def update_ppo(self):
         """
@@ -1524,7 +1522,7 @@ class PPONeuralGovernor:
                 b_returns = returns[indices]
 
                 # Evaluate current networks status
-                logits, state_values = self.network(b_states)
+                logits, state_values, _ = self.network(b_states)
                 state_values = state_values.squeeze(-1)
                 
                 probs = torch.softmax(logits, dim=-1)
@@ -1582,7 +1580,7 @@ class PPONeuralGovernor:
 
         # 4. Global Trajectory Diagnostic Evaluation (Post-Epochs)
         with torch.no_grad():
-            _, final_values = self.network(states)
+            _, final_values, _ = self.network(states)
             final_values = final_values.squeeze(-1).cpu().numpy()
             raw_returns = returns.cpu().numpy()
             
@@ -1612,7 +1610,7 @@ class PPONeuralGovernor:
     def get_live_probabilities(self, sample_obs, sample_wealths, sample_alive_mask):
         state_tensor = self._extract_state(sample_obs, sample_wealths, sample_alive_mask)
         with torch.no_grad():
-            logits, _ = self.network(state_tensor)
+            logits, _, _ = self.network(state_tensor)
             probs = torch.softmax(logits, dim=-1).numpy()
         return {
             "Communist": f"{probs[0]*100:.1f}%",

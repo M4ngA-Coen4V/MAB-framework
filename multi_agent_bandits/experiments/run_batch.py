@@ -22,6 +22,11 @@ def plot_input_layer_dynamics(governor, save_path="test_PPO/input_layer_trends.p
 
     # Convert the list of rows into an array for easy slicing: shape (Timesteps, 5)
     history_matrix = np.array(governor.input_layer_history)
+    # If the matrix was appended as (N, 5), ensure we have exactly 5 columns
+    if history_matrix.ndim == 1:
+        print("⚠️ Input history data is malformed (1D instead of 2D).")
+        return
+
     timesteps = range(len(history_matrix))
 
     labels = [
@@ -255,7 +260,11 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
 
         # Training Check: Only update weights if the governor supports it and we are training
         if is_training and governor is not None and hasattr(governor, "update_ppo"):
-            governor.update_ppo()
+            # Only update if the buffer has collected trajectory data
+            if hasattr(governor, "buffer_states") and len(governor.buffer_states) > 0:
+                governor.update_ppo()
+            else:
+                print(f"⚠️ Warning: No data in buffer for trial {trial+1}. Skipping update.")
         elif governor is not None and hasattr(governor, "buffer_states"):
             governor.buffer_states.clear()
             governor.buffer_actions.clear()
@@ -343,8 +352,11 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
             # We use a placeholder for alive_ratio and gini from the trial results
             # You'll need to pass those back from run_phase or track them here
             true_mse = governor.ppo_diagnostics_history[-1]["value_loss"] * 2
-            #governor.update_season_curriculum(true_mse)
-            governor.time_based_update_season_curriculum()
+            governor.update_season_curriculum(true_mse)
+            #governor.time_based_update_season_curriculum()
+            if governor.max_steps >= 1000:
+                print(f"\n🎉 Target Season Length ({governor.max_steps}) achieved at trial {trial + 1}. Stopping training early.")
+                break
 
             if (trial + 1) % 10 == 0:
                 print(f"Trial {trial+1}/{train_n_trials} | Current Season Length: {governor.max_steps}")
@@ -367,7 +379,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     def native_sampling_choose_action(observation, choices, wealths, raw_rewards, alive_mask):
         state_tensor = governor._extract_state(observation, wealths, alive_mask)
         with torch.no_grad(): # Keeps weights locked
-            logits, _ = governor.network(state_tensor)
+            logits, _, _ = governor.network(state_tensor)
             probs = torch.softmax(logits, dim=-1) # Use raw learned probabilities
             
             dist = torch.distributions.Categorical(probs)
@@ -469,4 +481,4 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     print("🎉 Visual diagnostic complete! Check your new './test_PPO' directory for the PNG outputs.")
 
 if __name__ == "__main__":
-    run_batch_simulation(train_n_trials=1000, test_n_trials=100, steps=1000)
+    run_batch_simulation(train_n_trials=500, test_n_trials=100, steps=1000)
