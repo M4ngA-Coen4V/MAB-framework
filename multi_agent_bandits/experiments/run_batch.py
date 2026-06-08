@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 import torch
+import matplotlib.pyplot as plt
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
 from multi_agent_bandits.core.governor import (
     PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, 
@@ -11,6 +12,136 @@ from multi_agent_bandits.core.governor import (
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 
+#plotting fucntions
+def plot_input_layer_dynamics(governor, save_path="test_PPO/input_layer_trends.png"):
+    """Generates a comprehensive line graph tracking the 5 dashboard inputs over time."""
+    if not hasattr(governor, "input_layer_history") or len(governor.input_layer_history) == 0:
+        print("⚠️ No input layer history found to plot.")
+        return
+
+    # Convert the list of rows into an array for easy slicing: shape (Timesteps, 5)
+    history_matrix = np.array(governor.input_layer_history)
+    timesteps = range(len(history_matrix))
+
+    labels = [
+        "Normalized Congestion",
+        "Survivor Ratio",
+        "Poorest Runway",
+        "Poverty Rate",
+        "Exploitation Focus"
+    ]
+    colors = ["#1f77b4", "#2ca02c", "#ff7f0e", "#d62728", "#9467bd"]
+
+    plt.figure(figsize=(12, 6))
+    
+    # Plot each of the 5 input layer lines
+    for i in range(5):
+        plt.plot(timesteps, history_matrix[:, i], label=labels[i], color=colors[i], alpha=0.85, linewidth=2)
+
+    plt.title(f"PPO Governor Input Layer Dashboard Dynamics Over Time", fontsize=14, fontweight='bold', pad=15)
+    plt.xlabel("Simulation Timestep", fontsize=12)
+    plt.ylabel("Normalized Indicator Metric Value (0.0 to 1.0)", fontsize=12)
+    
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.ylim(-0.05, 1.05)
+    plt.legend(loc="upper right", frameon=True, facecolor="white", edgecolor="none", shadow=True)
+    
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+    print(f"📈 Dashboard input tracking plot successfully saved to: '{save_path}'")
+
+def plot_output_layer_dynamics(governor, save_path="test_PPO/output_layer_trends.png"):
+    """Generates an overlapping line chart tracking the exact probability weights of the 4 macro governors."""
+    if not hasattr(governor, "output_layer_history") or len(governor.output_layer_history) == 0:
+        print("⚠️ No output layer history found to plot.")
+        return
+
+    # Convert tracker list into a structured NumPy array: shape (Timesteps, 4)
+    history_matrix = np.array(governor.output_layer_history)
+    timesteps = range(len(history_matrix))
+
+    labels = ["Communist", "Socialist", "Pigouvian", "FreeMarket"]
+    colors = ["#d62728", "#2ca02c", "#ff7f0e", "#1f77b4"] # Red, Green, Orange, Blue
+
+    plt.figure(figsize=(12, 6))
+    
+    # Plot individual overlapping lines
+    for i in range(4):
+        plt.plot(
+            timesteps, 
+            history_matrix[:, i], 
+            label=labels[i], 
+            color=colors[i], 
+            linewidth=2.5, 
+            alpha=0.9
+        )
+
+    plt.title("PPO Governor Strategy Allocation (Output Layer Ratios) Over Time", fontsize=14, fontweight='bold', pad=15)
+    plt.xlabel("Simulation Timestep", fontsize=12)
+    plt.ylabel("Policy Selection Probability Ratio (0.0 to 1.0)", fontsize=12)
+    
+    plt.xlim(0, len(history_matrix) - 1)
+    plt.ylim(-0.02, 1.02) # Slightly padded to ensure lines at 0.0 or 1.0 aren't cut off
+    plt.grid(True, linestyle="--", alpha=0.5)
+    
+    plt.legend(loc="upper right", frameon=True, facecolor="white", edgecolor="none", shadow=True, fontsize=11)
+    
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+    print(f"📈 Strategy line tracking plot successfully saved to: '{save_path}'")
+
+
+def plot_reward_decomposition_isolated(governor, save_path="test_PPO/reward_decomposition.png"):
+    """
+    Generates a standalone, publication-quality plot displaying the 
+    Composite Total Reward alongside its 3 underlying unweighted sub-rewards.
+    """
+    if not hasattr(governor, "reward_layer_history") or len(governor.reward_layer_history) == 0:
+        print("⚠️ No reward history found for plotting.")
+        return
+
+    # Convert the logged history list into a structured numpy array
+    reward_matrix = np.array(governor.reward_layer_history)
+    timesteps = range(len(reward_matrix))
+
+    # Create a single, clear figure
+    plt.figure(figsize=(12, 6.5))
+
+    # Map arrays based on your record_step_data append sequence:
+    # index 0 -> step_reward (weighted composite)
+    # index 1 -> r_economy (raw unweighted)
+    # index 2 -> r_ecology (raw unweighted)
+    # index 3 -> r_equality (raw unweighted)
+    plt.plot(timesteps, reward_matrix[:, 0], color='#000000', label='Total Step Reward (Composite)', linewidth=3, linestyle='-')
+    plt.plot(timesteps, reward_matrix[:, 1], color='#9467bd', label='Economic Performance ($r_{econ}$)', linewidth=2, linestyle='--')
+    plt.plot(timesteps, reward_matrix[:, 2], color='#8c564b', label='Ecological Health ($r_{ecol}$)', linewidth=2, linestyle='-.')
+    plt.plot(timesteps, reward_matrix[:, 3], color='#e377c2', label='Social Equality ($r_{eq}$)', linewidth=2, linestyle=':')
+
+    # Styling and Axis Configuration
+    plt.title("Reward Function Components & Scalar Decomposition", fontsize=14, fontweight='bold', pad=12)
+    plt.xlabel("Simulation Timestep", fontsize=12, fontweight='semibold')
+    plt.ylabel("Raw Metric Value (-1.0 to 1.0)", fontsize=12, fontweight='semibold')
+    
+    plt.xlim(0, len(timesteps))
+    plt.ylim(-1.05, 1.05)  # Enforce strict standard scalar bounds
+    
+    plt.grid(True, linestyle='--', alpha=0.4)
+    plt.legend(loc='lower right', frameon=True, shadow=True, facecolor='white', edgecolor='none')
+
+    # Ensure output directories exist and save cleanly
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+    
+    print(f"📊 Isolated Reward Decomposition Plot successfully saved to: '{save_path}'")
+
+
+#run batch
 def run_phase(governor, n_trials, steps, n_agents, is_training=True):
     """Helper function to execute a batch phase cleanly."""
     batch_total_rewards = []
@@ -121,6 +252,10 @@ def run_batch_simulation(n_trials=100, steps=1000):
             
             dist = torch.distributions.Categorical(probs)
             chosen_idx = dist.sample().item() # Sample naturally from the distribution!
+
+        # Logging
+        if hasattr(governor, "output_layer_history"):
+            governor.output_layer_history.append(probs)
             
         return governor.strategies[chosen_idx].choose_action(observation, choices, wealths, raw_rewards, alive_mask)
     
@@ -158,6 +293,14 @@ def run_batch_simulation(n_trials=100, steps=1000):
     print("\n📸 PHASE 3: Launching single visual tracking trial...")
     print("Saving all system charts to destination directory: './test_PPO' ...")
 
+    # Reset trackers to capture ONLY this visual test game cleanly
+    if hasattr(governor, "input_layer_history"):
+        governor.input_layer_history.clear()
+    if hasattr(governor, "output_layer_history"):
+        governor.output_layer_history.clear()
+    if hasattr(governor, "reward_layer_history"):
+        governor.reward_layer_history.clear()
+
     # Re-initialize a fresh environment hooked up to our trained greedy governor
     visual_env = DepletingCommonsEnvironment(
         n_agents=n_agents,
@@ -183,6 +326,14 @@ def run_batch_simulation(n_trials=100, steps=1000):
         plot_environment_health=True, 
         plot_resource_efficiency=True
     )
+
+    #plotting input layer dynamics
+    plot_input_layer_dynamics(governor, save_path="test_PPO/input_layer_trends.png")
+    #plotting output layer dynamics
+    plot_output_layer_dynamics(governor, save_path="test_PPO/output_layer_trends.png")
+    #plotting reward dynamics
+    plot_reward_decomposition_isolated(governor, save_path="test_PPO/policy_reward_alignment.png")
+
 
     # Flush the evaluation buffer out to ensure no memory residue leaks
     if hasattr(governor, "buffer_states"):

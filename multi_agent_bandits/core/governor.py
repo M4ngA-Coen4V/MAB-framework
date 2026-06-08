@@ -1198,11 +1198,22 @@ class PPONeuralGovernor:
         self.current_action_idx = None
         self.current_log_prob = None
 
+        #logging
+        self.input_layer_history = []
+        self.output_layer_history = []
+        self.reward_layer_history = []
+
     def _calculate_gini(self, wealths):
+        # Convert to numpy array
         array = np.array(wealths, dtype=np.float32)
-        if np.sum(array) == 0:
+        
+        # Filter out dead agents (wealth > 0)
+        array = array[array > 0.0]
+        
+        # Handle edge cases where everyone is dead or everyone has 0 wealth
+        if len(array) == 0 or np.sum(array) == 0:
             return 0.0
-        array += 1e-6
+            
         array = np.sort(array)
         index = np.arange(1, array.shape[0] + 1)
         return (np.sum((2 * index - len(array) - 1) * array)) / (len(array) * np.sum(array))
@@ -1291,6 +1302,13 @@ class PPONeuralGovernor:
         self.current_action_idx = chosen_idx
         self.current_log_prob = dist.log_prob(action_tensor).item()
 
+        # logging
+        with torch.no_grad():
+            logits, _ = self.network(state_tensor)
+            probs = torch.softmax(logits, dim=-1).cpu().numpy().tolist() # Shape: [4]
+        # Append the raw 4-strategy probability distribution row
+        self.output_layer_history.append(probs)
+
         return self.strategies[chosen_idx].choose_action(observation, choices, wealths, raw_rewards, alive_mask)
 
     def record_step_data(self, gross_rewards, arm_healths, wealths, death_count):
@@ -1309,14 +1327,36 @@ class PPONeuralGovernor:
         gini = self._calculate_gini(wealths)
         r_equality = 1.0 if gini <= 0.30 else max(-1.0, 1.0 - ((gini - 0.30) * 5.0))
 
+        # Scale the ideal reward baselines by the percentage of living agents
+        # 1. Convert to a numpy array for boolean masking
+        wealths_array = np.array(wealths, dtype=np.float32)
+        # 2. Compute the true survivor ratio (only agents with positive net worth)
+        active_survivors = np.sum(wealths_array > 0.0)
+        survivor_ratio = active_survivors / 30.0  # Assumes 30 is your max capacity
+        scaled_r_ecology = r_ecology * survivor_ratio
+        scaled_r_equality = r_equality * survivor_ratio
+
         # Balanced scalar combination for PPO maximization tracking
-        step_reward = (0.50 * r_economy) + (0.25 * r_ecology) + (0.25 * r_equality)
+        step_reward = (0.5 * r_economy) + (0.25 * scaled_r_ecology) + (0.25 * scaled_r_equality)
 
         # Append variables directly into trajectory lists
         self.buffer_states.append(self.current_state_tensor)
         self.buffer_actions.append(self.current_action_idx)
         self.buffer_log_probs.append(self.current_log_prob)
         self.buffer_rewards.append(step_reward)
+
+        #logging
+        if self.current_state_tensor is not None:
+            # Convert the PyTorch tensor to a standard Python list of 5 floats
+            self.input_layer_history.append(self.current_state_tensor.cpu().numpy().tolist())
+        
+        # logging
+        self.reward_layer_history.append([
+            step_reward,  # Index 0
+            r_economy,    # Index 1
+            scaled_r_ecology,  # Index 2
+            scaled_r_equality   # Index 3
+        ])
 
         # Clear step placeholders
         self.current_state_tensor = None
