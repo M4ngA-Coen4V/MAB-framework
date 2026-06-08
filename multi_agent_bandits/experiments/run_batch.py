@@ -7,7 +7,8 @@ from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvir
 from multi_agent_bandits.core.governor import (
     PigouvianGovernor, CommunistGovernor, SocialistGovernor, LearningGovernorAI, 
     SafetyNetGovernor, FreeMarketGovernor, DynamicTaxingGovernor, 
-    NeuralPolicyGradientGovernor, MultiObjectiveNeuralGovernor, PPONeuralGovernor
+    NeuralPolicyGradientGovernor, MultiObjectiveNeuralGovernor, PPONeuralGovernor,
+    ProgressiveTaxGovernor, SurvivalTargetedGovernor
 )
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
@@ -62,7 +63,7 @@ def plot_output_layer_dynamics(governor, save_path="test_PPO/output_layer_trends
     history_matrix = np.array(governor.output_layer_history)
     timesteps = range(len(history_matrix))
 
-    labels = ["Communist", "Socialist", "Pigouvian", "FreeMarket"]
+    labels = ["SurvivalTargeted", "Progressive", "Pigouvian", "FreeMarket"]
     colors = ["#d62728", "#2ca02c", "#ff7f0e", "#1f77b4"] # Red, Green, Orange, Blue
 
     plt.figure(figsize=(12, 6))
@@ -307,9 +308,22 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
 def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     n_agents = 30
     
-    governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, batch_size=1000, seed=None)   
+    #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.4)
+    #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
+    governor = SurvivalTargetedGovernor(n_agents=n_agents, survival_cost=3.0)
+
+    #governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, batch_size=1000, seed=None)
+    #    
     governor_name = governor.__class__.__name__ if governor is not None else "None (Baseline)"
     is_learning_model = hasattr(governor, "update_ppo")
+
+    # --- ADD THIS DEFAULT INITIALIZATION ---
+    train_metrics = {
+        "avg_reward": 0.0, "std_reward": 0.0, "max_reward": 0.0, 
+        "min_reward": 0.0, "avg_survivors": 0.0, "extinction_rate": 0.0,
+        "extinction_steps": []
+    }
+    # ---------------------------------------
 
     # Save the original choose_action to keep things clean
     original_choose_action = governor.choose_action
@@ -317,31 +331,32 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     # ========================================================
     # PHASE 1: TRAINING BLOCK
     # ========================================================
-    print(f"🚀 PHASE 1: Training {governor_name} over {train_n_trials} trials...\n")
-    # We loop through trials, but the 'max_steps' inside changes over time!
-    for trial in range(train_n_trials):
-        # Run a single trial of the current "Season Length"
-        train_metrics = run_phase(governor, n_trials=1, steps=governor.max_steps, n_agents=n_agents, is_training=True)
-        
-        # After each trial, check if the Governor earned a promotion
-        # (Assuming you added the check_episode_success method to governor)
-        # We use a placeholder for alive_ratio and gini from the trial results
-        # You'll need to pass those back from run_phase or track them here
-        true_mse = governor.ppo_diagnostics_history[-1]["value_loss"] * 2
-        governor.update_season_curriculum(true_mse)
-        
-        if (trial + 1) % 10 == 0:
-            print(f"Trial {trial+1}/{train_n_trials} | Current Season Length: {governor.max_steps}")
+    if is_learning_model:
+        print(f"🚀 PHASE 1: Training {governor_name} over {train_n_trials} trials...\n")
+        # We loop through trials, but the 'max_steps' inside changes over time!
+        for trial in range(train_n_trials):
+            # Run a single trial of the current "Season Length"
+            train_metrics = run_phase(governor, n_trials=1, steps=governor.max_steps, n_agents=n_agents, is_training=True)
+            
+            # After each trial, check if the Governor earned a promotion
+            # (Assuming you added the check_episode_success method to governor)
+            # We use a placeholder for alive_ratio and gini from the trial results
+            # You'll need to pass those back from run_phase or track them here
+            true_mse = governor.ppo_diagnostics_history[-1]["value_loss"] * 2
+            governor.update_season_curriculum(true_mse)
+            
+            if (trial + 1) % 10 == 0:
+                print(f"Trial {trial+1}/{train_n_trials} | Current Season Length: {governor.max_steps}")
 
-    print("✅ Training complete. Network weights locked.\n")
+        print("✅ Training complete. Network weights locked.\n")
 
-    # ---------------------------------------------------------------------
-    # 📊 NEW: PLOT ACTOR-CRITIC INTERNAL HEALTH
-    # ---------------------------------------------------------------------
-    print("📊 Generating Actor-Critic structural health diagnostic dashboard...")
+        # ---------------------------------------------------------------------
+        # 📊 NEW: PLOT ACTOR-CRITIC INTERNAL HEALTH
+        # ---------------------------------------------------------------------
+        print("📊 Generating Actor-Critic structural health diagnostic dashboard...")
 
-    # Pass the accumulated diagnostics array from inside your governor instance
-    plot_actor_critic_diagnostics(diagnostics_history=governor.ppo_diagnostics_history, save_dir="./test_PPO")
+        # Pass the accumulated diagnostics array from inside your governor instance
+        plot_actor_critic_diagnostics(diagnostics_history=governor.ppo_diagnostics_history, save_dir="./test_PPO")
 
     # ========================================================
     # PHASE 2: TESTING / EVALUATION BLOCK (100 Trials)
@@ -363,13 +378,15 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
             
         return governor.strategies[chosen_idx].choose_action(observation, choices, wealths, raw_rewards, alive_mask)
     
-    # Swap behavioral hook to use natural sampling
-    governor.choose_action = native_sampling_choose_action
-    
+    if is_learning_model:
+        # Swap behavioral hook to use natural sampling
+        governor.choose_action = native_sampling_choose_action
+        
     test_metrics = run_phase(governor, test_n_trials, steps, n_agents, is_training=False)
 
-    # Restore original method footprint just in case
-    governor.choose_action = original_choose_action
+    if is_learning_model:
+        # Restore original method footprint just in case
+        governor.choose_action = original_choose_action
 
     # ========================================================
     # COMPREHENSIVE SIMULATION REPORT

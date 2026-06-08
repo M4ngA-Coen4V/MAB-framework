@@ -382,6 +382,91 @@ class PigouvianGovernor:
         # Total productivity across the entire pool
         return sum(final_rewards)
     
+class ProgressiveTaxGovernor:
+    '''
+    Takes a set tax rate of the top 50% of earners and redistributes it to the bottom 50% of earners.
+    '''
+    def __init__(self, n_agents=30, tax_rate=0.4):
+        self.n_agents = n_agents
+        self.tax_rate = tax_rate
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        alive_indices = [i for i, alive in enumerate(alive_mask) if alive]
+        if not alive_indices: return [0.0] * self.n_agents
+        
+        # Identify top/bottom performers based on harvest
+        sorted_indices = sorted(alive_indices, key=lambda i: raw_rewards[i])
+        num_bottom = len(alive_indices) // 2
+        
+        tax_pool = 0.0
+        adjustments = [0.0] * self.n_agents
+        
+        # Collect tax from top 50%
+        for i in sorted_indices[num_bottom:]:
+            tax = raw_rewards[i] * self.tax_rate
+            adjustments[i] -= tax
+            tax_pool += tax
+            
+        # Redistribute to bottom 50%
+        subsidy = tax_pool / max(1, num_bottom)
+        for i in sorted_indices[:num_bottom]:
+            adjustments[i] += subsidy
+            
+        return adjustments
+    
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        """
+        Evaluates performance to keep the historical metrics tracking unbroken.
+        """
+        # Total productivity across the entire pool
+        return sum(final_rewards)
+
+class SurvivalTargetedGovernor:
+    '''
+    Takes a changing amount of tax from all agents to make sure every agent gets atleast the survival_cost, 
+    then redistributes it to the agents that put in most effort.
+    '''
+    def __init__(self, n_agents=30, survival_cost=3.0):
+        self.n_agents = n_agents
+        self.survival_cost = survival_cost
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        alive_indices = [i for i, alive in enumerate(alive_mask) if alive]
+        num_alive = len(alive_indices)
+        if num_alive == 0: return [0.0] * self.n_agents
+        
+        # 1. Total pool needed to guarantee every survivor gets their step cost (3.0)
+        # Note: If wealths are already high, agents don't 'need' the full 3.0.
+        # This logic ensures the pool is large enough to save the poorest.
+        total_needed = num_alive * self.survival_cost
+        total_harvest = sum(raw_rewards[i] for i in alive_indices)
+        
+        # 2. Determine necessary tax rate (between 0% and 100%)
+        # If total harvest is less than needed, we must tax 100% of all earnings.
+        required_tax_rate = min(1.0, total_needed / max(0.001, total_harvest))
+        
+        # 3. Collect from everyone at the required tax rate
+        # Zero-sum: Everyone loses their slice, everyone gets an equal dividend
+        adjustments = [0.0] * self.n_agents
+        
+        for i in alive_indices:
+            taxed_amount = raw_rewards[i] * required_tax_rate
+            adjustments[i] -= taxed_amount
+        
+        # 4. Redistribute the collected taxes equally
+        dividend = (total_harvest * required_tax_rate) / num_alive
+        for i in alive_indices:
+            adjustments[i] += dividend
+            
+        return adjustments
+    
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        """
+        Evaluates performance to keep the historical metrics tracking unbroken.
+        """
+        # Total productivity across the entire pool
+        return sum(final_rewards)
+    
 
 class SocialistGovernor:
     """
@@ -1176,11 +1261,11 @@ class PPONeuralGovernor:
 
         # Initialize core macro strategies
         from multi_agent_bandits.core.governor import (
-            CommunistGovernor, SocialistGovernor, PigouvianGovernor, FreeMarketGovernor
+            SurvivalTargetedGovernor, ProgressiveTaxGovernor, PigouvianGovernor, FreeMarketGovernor
         )
         self.strategies = [
-            CommunistGovernor(n_agents=n_agents),
-            SocialistGovernor(n_agents=n_agents, tax_rate=0.5),
+            SurvivalTargetedGovernor(n_agents=n_agents, survival_cost=3.0),
+            ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.4),
             PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0),
             FreeMarketGovernor(n_agents=n_agents)
         ]
