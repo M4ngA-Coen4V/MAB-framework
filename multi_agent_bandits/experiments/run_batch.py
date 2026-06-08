@@ -261,10 +261,12 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
             governor.buffer_log_probs.clear()
             governor.buffer_rewards.clear()
 
+        
         # Gather Statistics
         batch_total_rewards.append(sum(runner.total_rewards))
         survivor_count = sum(1 for step in env.death_steps if step is None)
         batch_survival_counts.append(survivor_count)
+        
         
         if survivor_count == 0:
             extinction_step = max([step for step in env.death_steps if step is not None])
@@ -305,7 +307,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
 def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     n_agents = 30
     
-    governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, batch_size=64, seed=None)   
+    governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, batch_size=1000, seed=None)   
     governor_name = governor.__class__.__name__ if governor is not None else "None (Baseline)"
     is_learning_model = hasattr(governor, "update_ppo")
 
@@ -316,7 +318,21 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     # PHASE 1: TRAINING BLOCK
     # ========================================================
     print(f"🚀 PHASE 1: Training {governor_name} over {train_n_trials} trials...\n")
-    train_metrics = run_phase(governor, train_n_trials, steps, n_agents, is_training=True)
+    # We loop through trials, but the 'max_steps' inside changes over time!
+    for trial in range(train_n_trials):
+        # Run a single trial of the current "Season Length"
+        train_metrics = run_phase(governor, n_trials=1, steps=governor.max_steps, n_agents=n_agents, is_training=True)
+        
+        # After each trial, check if the Governor earned a promotion
+        # (Assuming you added the check_episode_success method to governor)
+        # We use a placeholder for alive_ratio and gini from the trial results
+        # You'll need to pass those back from run_phase or track them here
+        true_mse = governor.ppo_diagnostics_history[-1]["value_loss"] * 2
+        governor.update_season_curriculum(true_mse)
+        
+        if (trial + 1) % 10 == 0:
+            print(f"Trial {trial+1}/{train_n_trials} | Current Season Length: {governor.max_steps}")
+
     print("✅ Training complete. Network weights locked.\n")
 
     # ---------------------------------------------------------------------
@@ -435,4 +451,4 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     print("🎉 Visual diagnostic complete! Check your new './test_PPO' directory for the PNG outputs.")
 
 if __name__ == "__main__":
-    run_batch_simulation(train_n_trials=300, test_n_trials=100, steps=1000)
+    run_batch_simulation(train_n_trials=1000, test_n_trials=100, steps=1000)

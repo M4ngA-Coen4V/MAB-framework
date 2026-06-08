@@ -1169,6 +1169,10 @@ class PPONeuralGovernor:
         if seed is not None:
             torch.manual_seed(seed)
             np.random.seed(seed)
+        
+        self.max_steps = 50  # Start with short 50-step seasons
+        self.success_counter = 0
+        self.promotion_threshold = 10 # Promote after 20 "good" episodes
 
         # Initialize core macro strategies
         from multi_agent_bandits.core.governor import (
@@ -1531,3 +1535,25 @@ class PPONeuralGovernor:
             "Pigouvian": f"{probs[2]*100:.1f}%",
             "FreeMarket": f"{probs[3]*100:.1f}%"
         }
+
+    def update_season_curriculum(self, current_mse):
+        # Only promote if the Critic is actually confident (MSE is low)
+        # AND the agent is performing well
+        if current_mse < 0.3:  # This threshold can be tuned based on observed training dynamics
+            self.success_counter += 1
+            if self.success_counter >= self.promotion_threshold:
+                print(f"Critic has converged (MSE: {current_mse:.3f}). Promoting to {self.max_steps} steps.")
+                self.promote_to_longer_season()
+        else:
+            # reset the counter if performance is bad
+            self.success_counter = 0
+
+            
+
+            
+        #print(f"Current Critic MSE: {current_mse:.3f} | Success Counter: {self.success_counter}/{self.promotion_threshold}")
+
+    def promote_to_longer_season(self):
+        self.max_steps = min(1000, self.max_steps + 50)
+        self.success_counter = 0 # Reset counter for the next level
+        print(f"Promotion! New season length: {self.max_steps}")
