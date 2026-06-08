@@ -310,9 +310,9 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     
     #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.4)
     #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
-    governor = SurvivalTargetedGovernor(n_agents=n_agents, survival_cost=3.0)
+    #governor = SurvivalTargetedGovernor(n_agents=n_agents, survival_cost=3.0)
 
-    #governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, batch_size=1000, seed=None)
+    governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, batch_size=1000, seed=None)
     #    
     governor_name = governor.__class__.__name__ if governor is not None else "None (Baseline)"
     is_learning_model = hasattr(governor, "update_ppo")
@@ -343,8 +343,9 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
             # We use a placeholder for alive_ratio and gini from the trial results
             # You'll need to pass those back from run_phase or track them here
             true_mse = governor.ppo_diagnostics_history[-1]["value_loss"] * 2
-            governor.update_season_curriculum(true_mse)
-            
+            #governor.update_season_curriculum(true_mse)
+            governor.time_based_update_season_curriculum()
+
             if (trial + 1) % 10 == 0:
                 print(f"Trial {trial+1}/{train_n_trials} | Current Season Length: {governor.max_steps}")
 

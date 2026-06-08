@@ -1257,7 +1257,7 @@ class PPONeuralGovernor:
         
         self.max_steps = 50  # Start with short 50-step seasons
         self.success_counter = 0
-        self.promotion_threshold = 10 # Promote after 20 "good" episodes
+        self.promotion_threshold = 50 # Promote after 50 "good" episodes
 
         # Initialize core macro strategies
         from multi_agent_bandits.core.governor import (
@@ -1632,6 +1632,12 @@ class PPONeuralGovernor:
         else:
             # reset the counter if performance is bad
             self.success_counter = 0
+
+    def time_based_update_season_curriculum(self):
+        self.success_counter += 1
+        if self.success_counter >= self.promotion_threshold:
+            print(f"Time-based promotion triggered after {self.success_counter} episodes.")
+            self.promote_to_longer_season()
 
             
 
