@@ -222,7 +222,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
         "extinction_steps": batch_extinction_steps
     }
 
-def run_batch_simulation(n_trials=100, steps=1000):
+def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     n_agents = 30
     
     governor = PPONeuralGovernor(n_agents=n_agents, learning_rate=0.001, clip_epsilon=0.2, ppo_epochs=4, seed=None)   
@@ -235,14 +235,14 @@ def run_batch_simulation(n_trials=100, steps=1000):
     # ========================================================
     # PHASE 1: TRAINING BLOCK
     # ========================================================
-    print(f"🚀 PHASE 1: Training {governor_name} over {n_trials} trials...\n")
-    train_metrics = run_phase(governor, n_trials, steps, n_agents, is_training=True)
+    print(f"🚀 PHASE 1: Training {governor_name} over {train_n_trials} trials...\n")
+    train_metrics = run_phase(governor, train_n_trials, steps, n_agents, is_training=True)
     print("✅ Training complete. Network weights locked.\n")
 
     # ========================================================
     # PHASE 2: TESTING / EVALUATION BLOCK (100 Trials)
     # ========================================================
-    print(f"🧪 PHASE 2: Evaluating final {governor_name} performance across {n_trials} independent test games...\n")
+    print(f"🧪 PHASE 2: Evaluating final {governor_name} performance across {test_n_trials} independent test games...\n")
     
     def native_sampling_choose_action(observation, choices, wealths, raw_rewards, alive_mask):
         state_tensor = governor._extract_state(observation, wealths, alive_mask)
@@ -262,7 +262,7 @@ def run_batch_simulation(n_trials=100, steps=1000):
     # Swap behavioral hook to use natural sampling
     governor.choose_action = native_sampling_choose_action
     
-    test_metrics = run_phase(governor, n_trials, steps, n_agents, is_training=False)
+    test_metrics = run_phase(governor, test_n_trials, steps, n_agents, is_training=False)
 
     # Restore original method footprint just in case
     governor.choose_action = original_choose_action
@@ -347,4 +347,4 @@ def run_batch_simulation(n_trials=100, steps=1000):
     print("🎉 Visual diagnostic complete! Check your new './test_PPO' directory for the PNG outputs.")
 
 if __name__ == "__main__":
-    run_batch_simulation(n_trials=100, steps=1000)
+    run_batch_simulation(train_n_trials=300, test_n_trials=100, steps=1000)
