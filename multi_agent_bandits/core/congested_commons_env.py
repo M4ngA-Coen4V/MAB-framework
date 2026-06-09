@@ -1,3 +1,5 @@
+from unittest import result
+
 from multi_agent_bandits.core import agent
 from multi_agent_bandits.core.environment import Environment
 from multi_agent_bandits.core.arm import Arm
@@ -327,15 +329,22 @@ class DepletingCommonsEnvironment(Environment):
         adjustments = [0.0] * len(agents)
             
         if self.governor and any(self.is_alive):
-            observation = self._build_governor_observation(choices)
-            
-            adjustments = self.governor.choose_action(
+            observation = self._build_governor_observation(choices)    
+            action_idx, adjustments = self.governor.choose_action(
                 observation=observation,
                 choices=choices,
                 wealths=list(self.agent_wealths),
                 raw_rewards=list(raw_rewards),
                 alive_mask=list(self.is_alive)
             )
+            
+			# We track how well the specific 'action_idx' (the strategy) 
+            # performed based on the current system-wide reward impact.
+            if hasattr(self.governor, "update_strategy_performance"):
+                self.governor.update_strategy_performance(
+                    action_idx=action_idx, 
+                    reward=sum(adjustments) # The net impact of the Governor's choice
+                )
             
             for agent_idx, adjustment in enumerate(adjustments):
                 if self.is_alive[agent_idx]:

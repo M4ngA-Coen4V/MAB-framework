@@ -1263,6 +1263,10 @@ class PPONeuralGovernor:
         self.success_counter = 0
         self.promotion_threshold = 3 # Promote after 3 "good" episodes
 
+        # strategy performance 
+        self.strategy_rewards = np.zeros(4) # Track running reward for each strategy
+        self.strategy_counts = np.zeros(4)  # Track how often each was used
+
         # Initialize core macro strategies
         from multi_agent_bandits.core.governor import (
             SurvivalTargetedGovernor, ProgressiveTaxGovernor, PigouvianGovernor, FreeMarketGovernor
@@ -1276,7 +1280,7 @@ class PPONeuralGovernor:
         self.n_actions = len(self.strategies)
         
         # Continuous state inputs: [Congestion, Survivor Ratio, Poorest Runway, Poverty Rate, Exploitation Focus]
-        self.input_dim = 10
+        self.input_dim = 14
         self.last_state_vector = torch.zeros(5)
         self.network = ActorCriticNetwork(self.input_dim, self.n_actions, n_agents)
         
@@ -1405,31 +1409,40 @@ class PPONeuralGovernor:
         return torch.cat([current_indicators, velocity])
 
     def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
-        state_tensor = self._extract_state(observation, wealths, alive_mask)
-        self.current_state_tensor = state_tensor
-
+        # 1. Extract the 10-length env features
+        env_features = self._extract_state(observation, wealths, alive_mask)
+        
+        # 2. Add the Meta-Data (Strategy History)
+        strategy_features = torch.FloatTensor(self.strategy_rewards) / 50.0
+        full_state = torch.cat([env_features, strategy_features])
+        
+        # 3. Perform the inference
         with torch.no_grad():
-            # CHANGE THIS LINE to capture all three outputs
-            logits, total_value, agent_values = self.network(state_tensor)
+            logits, total_value, agent_values = self.network(full_state)
             probs = torch.softmax(logits, dim=-1)
             
-            # Formulate categorical distribution for valid sampling & log_prob extraction
+            # Sampling
             dist = torch.distributions.Categorical(probs)
             action_tensor = dist.sample()
             
-        chosen_idx = action_tensor.item()
-        self.current_action_idx = chosen_idx
+        # 4. Store current step data for the buffer
+        self.current_state_tensor = full_state
+        self.current_action_idx = action_tensor.item()
         self.current_log_prob = dist.log_prob(action_tensor).item()
         self.current_value = total_value.item()
 
-        # logging
-        with torch.no_grad():
-            logits, total_value, agent_values = self.network(state_tensor)
-            probs = torch.softmax(logits, dim=-1).cpu().numpy().tolist() # Shape: [4]
-        # Append the raw 4-strategy probability distribution row
-        self.output_layer_history.append(probs)
+        # 5. Logging (using full_state, not the undefined state_tensor)
+        # Note: probs is already computed above, we can reuse it
+        self.output_layer_history.append(probs.cpu().numpy().tolist())
 
-        return self.strategies[chosen_idx].choose_action(observation, choices, wealths, raw_rewards, alive_mask)
+        # 6. Get the adjustments from the chosen strategy
+        # Ensure we capture the result of the strategy's own choose_action
+        strategy_result = self.strategies[self.current_action_idx].choose_action(
+            observation, choices, wealths, raw_rewards, alive_mask
+        )
+
+        # 7. Explicitly return the action_idx AND the result
+        return self.current_action_idx, strategy_result
 
     def record_step_data(self, gross_rewards, arm_healths, wealths, death_count):
         if self.current_state_tensor is None: return
@@ -1646,3 +1659,10 @@ class PPONeuralGovernor:
         self.max_steps = min(1000, self.max_steps + 50)
         self.success_counter = 0 # Reset counter for the next level
         print(f"Promotion! New season length: {self.max_steps}")
+
+    def update_strategy_performance(self, action_idx, reward):
+        # Standard incremental average calculation
+        self.strategy_counts[action_idx] += 1
+        # Alpha (0.1) creates a moving window; older data slowly fades
+        alpha = 0.1 
+        self.strategy_rewards[action_idx] += alpha * (reward - self.strategy_rewards[action_idx])

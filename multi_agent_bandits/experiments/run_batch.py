@@ -377,9 +377,13 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     print(f"🧪 PHASE 2: Evaluating final {governor_name} performance across {test_n_trials} independent test games...\n")
     
     def native_sampling_choose_action(observation, choices, wealths, raw_rewards, alive_mask):
-        state_tensor = governor._extract_state(observation, wealths, alive_mask)
+        env_features = governor._extract_state(observation, wealths, alive_mask)
+        # 2. Add the Meta-Data
+        strategy_features = torch.FloatTensor(governor.strategy_rewards) / 50.0
+        full_state = torch.cat([env_features, strategy_features])
         with torch.no_grad(): # Keeps weights locked
-            logits, _, _ = governor.network(state_tensor)
+
+            logits, _, _ = governor.network(full_state) # Now math aligns!
             probs = torch.softmax(logits, dim=-1) # Use raw learned probabilities
             
             dist = torch.distributions.Categorical(probs)
@@ -388,8 +392,14 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
         # Logging
         if hasattr(governor, "output_layer_history"):
             governor.output_layer_history.append(probs)
-            
-        return governor.strategies[chosen_idx].choose_action(observation, choices, wealths, raw_rewards, alive_mask)
+        
+        # 1. Get the adjustments from the chosen strategy
+        adjustments = governor.strategies[chosen_idx].choose_action(
+            observation, choices, wealths, raw_rewards, alive_mask
+        )
+    
+        # 2. Return BOTH the index and the adjustments to match the unpacker
+        return chosen_idx, adjustments
     
     if is_learning_model:
         # Swap behavioral hook to use natural sampling
