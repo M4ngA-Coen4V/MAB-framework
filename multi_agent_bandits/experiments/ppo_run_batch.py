@@ -315,7 +315,21 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
         print(f"| Avg Extinction Timestep     | {t_ext:<19} | {e_ext:<19} |")
     print("=" * 60)
 
+    print("\n📈 Generating detailed internal dynamics visualizations...")
+    plot_input_layer_dynamics(governor, save_path="test_PPO/input_layer_trends_all_runs.png")
+    plot_output_layer_dynamics(governor, save_path="test_PPO/output_layer_trends_all_runs.png")
+    plot_reward_decomposition_isolated(governor, save_path="test_PPO/policy_reward_alignment_all_runs.png")
+
     print("\n📸 Producing visualization trial outputs in './test_PPO'...")
+
+    # Reset trackers to capture ONLY this visual test game cleanly
+    if hasattr(governor, "input_layer_history"):
+        governor.input_layer_history.clear()
+    if hasattr(governor, "output_layer_history"):
+        governor.output_layer_history.clear()
+    if hasattr(governor, "reward_layer_history"):
+        governor.reward_layer_history.clear()
+
     governor.reset()
     governor.is_evaluating = True
 
@@ -337,11 +351,12 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
         plot_environment_health=True,
         plot_resource_efficiency=True,
     )
-    plot_input_layer_dynamics(governor, save_path="test_PPO/input_layer_trends.png")
-    plot_output_layer_dynamics(governor, save_path="test_PPO/output_layer_trends.png")
-    plot_reward_decomposition_isolated(governor, save_path="test_PPO/policy_reward_alignment.png")
-
+    
+    plot_input_layer_dynamics(governor, save_path="test_PPO/input_layer_trends_single_run.png")
+    plot_output_layer_dynamics(governor, save_path="test_PPO/output_layer_trends_single_run.png")
+    plot_reward_decomposition_isolated(governor, save_path="test_PPO/policy_reward_alignment_single_run.png")
     print("🎉 Visual diagnostic complete! Check './test_PPO' for charts.")
+    
 
 
 if __name__ == "__main__":
