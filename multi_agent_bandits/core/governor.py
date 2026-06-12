@@ -1917,7 +1917,15 @@ class PPOGovernor:
         actions = torch.tensor(self.buffer_actions, dtype=torch.int64)
         old_log_probs = torch.tensor(self.buffer_log_probs, dtype=torch.float32)
         old_values = torch.tensor(self.buffer_values, dtype=torch.float32)
-        rewards = self.buffer_rewards
+        # --- Normalize rewards per PPO update ---
+        rewards = torch.tensor(self.buffer_rewards, dtype=torch.float32)
+        rewards_mean = rewards.mean()
+        rewards_std = rewards.std()
+        rewards = (rewards - rewards_mean) / (rewards_std + 1e-8)
+
+        # Convert back to list so your return/GAE loop works unchanged
+        rewards = rewards.tolist()
+
 
         # Compute return-to-go for each interval and use advantage normalization.
         returns = []
