@@ -278,6 +278,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
         batch_size=32,
         gamma=0.99,
         entropy_coef=0.01,
+        lam=0.95,
         seed=None,
     )
 

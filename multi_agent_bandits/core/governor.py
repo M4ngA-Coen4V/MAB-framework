@@ -1706,6 +1706,7 @@ class PPOGovernor:
         batch_size=32,
         gamma=0.99,
         entropy_coef=0.01,
+        lam=0.95,
         seed=None,
     ):
         # Macros for governance-level PPO training
@@ -1717,6 +1718,7 @@ class PPOGovernor:
         self.ppo_epochs = ppo_epochs
         self.batch_size = batch_size
         self.entropy_coef = entropy_coef
+        self.lam = lam
 
         if seed is not None:
             random.seed(seed)
@@ -1924,9 +1926,22 @@ class PPOGovernor:
             discounted_sum = reward + self.gamma * discounted_sum
             returns.insert(0, discounted_sum)
 
+        # Convert to tensors
         returns = torch.tensor(returns, dtype=torch.float32)
-        advantages = returns - old_values
+
+        # --- Compute GAE advantages ---
+        advantages = []
+        gae = 0
+        for t in reversed(range(len(rewards))):
+            delta = rewards[t] + self.gamma * (old_values[t+1] if t+1 < len(old_values) else 0) - old_values[t]
+            gae = delta + self.gamma * self.lam * gae
+            advantages.insert(0, gae)
+
+        advantages = torch.tensor(advantages, dtype=torch.float32)
+
+        # --- Normalize advantages ---
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
 
         # Initialize diagnostic collectors for this update session.
         epoch_actor_losses = []
