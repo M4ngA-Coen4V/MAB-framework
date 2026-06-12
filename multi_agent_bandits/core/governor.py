@@ -1666,3 +1666,285 @@ class PPONeuralGovernor:
         # Alpha (0.1) creates a moving window; older data slowly fades
         alpha = 0.1 
         self.strategy_rewards[action_idx] += alpha * (reward - self.strategy_rewards[action_idx])
+
+
+class PPOPolicyNetwork(nn.Module):
+    """Tiny actor-critic network for the macro-level PPO governor."""
+    def __init__(self, input_dim, n_actions):
+        super(PPOPolicyNetwork, self).__init__()
+        self.backbone = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+        )
+        self.actor_head = nn.Linear(64, n_actions)
+        self.critic_head = nn.Linear(64, 1)
+
+    def forward(self, state):
+        features = self.backbone(state)
+        logits = self.actor_head(features)
+        value = self.critic_head(features).squeeze(-1)
+        return logits, value
+
+
+class PPOGovernor:
+    """A clean discrete PPO governor that acts every C=10 environment steps."""
+    def __init__(
+        self,
+        n_agents=30,
+        n_arms=30,
+        decision_interval=10,
+        learning_rate=1e-3,
+        clip_epsilon=0.2,
+        ppo_epochs=4,
+        batch_size=32,
+        gamma=0.99,
+        entropy_coef=0.01,
+        seed=None,
+    ):
+        self.n_agents = n_agents
+        self.n_arms = n_arms
+        self.decision_interval = decision_interval
+        self.gamma = gamma
+        self.clip_epsilon = clip_epsilon
+        self.ppo_epochs = ppo_epochs
+        self.batch_size = batch_size
+        self.entropy_coef = entropy_coef
+
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
+            torch.manual_seed(seed)
+
+        from multi_agent_bandits.core.governor import (
+            PigouvianGovernor, ProgressiveTaxGovernor, SurvivalTargetedGovernor, FreeMarketGovernor
+        )
+
+        self.strategies = [
+            PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0),
+            ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.4),
+            SurvivalTargetedGovernor(n_agents=n_agents, survival_cost=3.0),
+            FreeMarketGovernor(n_agents=n_agents),
+        ]
+        self.n_actions = len(self.strategies)
+        self.network = PPOPolicyNetwork(self.n_arms + 6, self.n_actions)
+        self.optimizer = optim.Adam(self.network.parameters(), lr=learning_rate)
+
+        self.current_action_idx = None
+        self.current_strategy = self.strategies[0]
+        self.current_phase_steps = 0
+        self.current_phase_reward = 0.0
+        self.internal_step = 0
+        self.is_evaluating = False
+
+        self.pending_state = None
+        self.pending_value = 0.0
+        self.pending_log_prob = 0.0
+
+        self.buffer_states = []
+        self.buffer_actions = []
+        self.buffer_log_probs = []
+        self.buffer_values = []
+        self.buffer_rewards = []
+
+        self.input_layer_history = []
+        self.output_layer_history = []
+        self.reward_layer_history = []
+
+    def reset(self):
+        """Reset internal state before a fresh episode."""
+        self.current_action_idx = None
+        self.current_strategy = self.strategies[0]
+        self.current_phase_steps = 0
+        self.current_phase_reward = 0.0
+        self.internal_step = 0
+        self.pending_state = None
+        self.pending_value = 0.0
+        self.pending_log_prob = 0.0
+
+    def _normalize(self, value, cap):
+        return max(0.0, min(1.0, value / cap))
+
+    def _build_global_observation(self, choices, wealths, alive_mask):
+        """Convert raw environment signals into a fixed-size global feature vector."""
+        n_alive = sum(1 for alive in alive_mask if alive)
+        alive_ratio = n_alive / max(1, self.n_agents)
+
+        alive_wealths = [w for w, alive in zip(wealths, alive_mask) if alive]
+        mean_wealth = np.mean(alive_wealths) if alive_wealths else 0.0
+        wealth_variance = np.var(alive_wealths) if alive_wealths else 0.0
+        min_wealth = min(alive_wealths) if alive_wealths else 0.0
+
+        mean_wealth_norm = self._normalize(mean_wealth, 200.0)
+        wealth_variance_norm = self._normalize(wealth_variance, 10000.0)
+        min_wealth_norm = self._normalize(min_wealth, 200.0)
+
+        arm_counts = np.zeros(self.n_arms, dtype=np.float32)
+        for idx, choice in enumerate(choices):
+            if alive_mask[idx] and choice is not None and 0 <= choice < self.n_arms:
+                arm_counts[choice] += 1.0
+
+        normalized_congestion = arm_counts / max(1.0, n_alive)
+        max_congestion = float(np.max(normalized_congestion)) if self.n_arms > 0 else 0.0
+
+        nonzero = normalized_congestion[normalized_congestion > 0.0]
+        if len(nonzero) > 0:
+            entropy = -np.sum(nonzero * np.log2(nonzero))
+            max_entropy = np.log2(self.n_arms) if self.n_arms > 1 else 1.0
+            action_diversity = self._normalize(entropy, max_entropy)
+        else:
+            action_diversity = 0.0
+
+        feature_vector = np.concatenate([
+            [alive_ratio, mean_wealth_norm, wealth_variance_norm, min_wealth_norm],
+            normalized_congestion,
+            [max_congestion, action_diversity]
+        ]).astype(np.float32)
+
+        return torch.FloatTensor(feature_vector)
+
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        """Choose a macro policy every decision interval and reuse it for the interval."""
+        self.internal_step += 1
+        decision_step = ((self.internal_step - 1) % self.decision_interval) == 0
+
+        if self.current_action_idx is None or decision_step:
+            state = self._build_global_observation(choices, wealths, alive_mask)
+            logits, value = self.network(state)
+            probs = torch.softmax(logits, dim=-1)
+
+            if self.is_evaluating:
+                action_idx = int(torch.argmax(probs).item())
+            else:
+                dist = torch.distributions.Categorical(probs)
+                action_idx = int(dist.sample().item())
+
+            self.current_action_idx = action_idx
+            self.current_strategy = self.strategies[action_idx]
+            self.pending_state = state
+            self.pending_value = float(value.item())
+            self.pending_log_prob = float(torch.log(probs[action_idx] + 1e-8).item())
+
+            self.input_layer_history.append(state.tolist())
+            self.output_layer_history.append(probs.detach().cpu().numpy().tolist())
+
+        adjustments = self.current_strategy.choose_action(
+            observation, choices, wealths, raw_rewards, alive_mask
+        )
+
+        return self.current_action_idx, adjustments
+
+    def record_step_data(self, gross_rewards, arm_healths, wealths, death_count):
+        """Accumulate step rewards and create PPO transitions every decision interval."""
+        self.current_phase_reward += sum(gross_rewards)
+        self.current_phase_steps += 1
+
+        if self.current_phase_steps >= self.decision_interval and self.pending_state is not None:
+            self.buffer_states.append(self.pending_state)
+            self.buffer_actions.append(self.current_action_idx)
+            self.buffer_log_probs.append(self.pending_log_prob)
+            self.buffer_values.append(self.pending_value)
+            self.buffer_rewards.append(self.current_phase_reward)
+            self.reward_layer_history.append([
+                self.current_phase_reward,
+                self.current_phase_reward,
+                0.0,
+                0.0,
+            ])
+            self.current_phase_steps = 0
+            self.current_phase_reward = 0.0
+
+    def _flush_partial_interval(self):
+        if self.current_phase_steps > 0 and self.pending_state is not None:
+            self.buffer_states.append(self.pending_state)
+            self.buffer_actions.append(self.current_action_idx)
+            self.buffer_log_probs.append(self.pending_log_prob)
+            self.buffer_values.append(self.pending_value)
+            self.buffer_rewards.append(self.current_phase_reward)
+            self.reward_layer_history.append([
+                self.current_phase_reward,
+                self.current_phase_reward,
+                0.0,
+                0.0,
+            ])
+            self.current_phase_steps = 0
+            self.current_phase_reward = 0.0
+
+    def update_ppo(self):
+        """Run the PPO optimization pass over collected interval-level transitions."""
+        self._flush_partial_interval()
+
+        if len(self.buffer_states) == 0:
+            return
+
+        states = torch.stack(self.buffer_states)
+        actions = torch.tensor(self.buffer_actions, dtype=torch.int64)
+        old_log_probs = torch.tensor(self.buffer_log_probs, dtype=torch.float32)
+        old_values = torch.tensor(self.buffer_values, dtype=torch.float32)
+        rewards = self.buffer_rewards
+
+        returns = []
+        discounted_sum = 0.0
+        for reward in reversed(rewards):
+            discounted_sum = reward + self.gamma * discounted_sum
+            returns.insert(0, discounted_sum)
+
+        returns = torch.tensor(returns, dtype=torch.float32)
+        advantages = returns - old_values
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+        for _ in range(self.ppo_epochs):
+            permutation = torch.randperm(states.size(0))
+            for start in range(0, states.size(0), self.batch_size):
+                indices = permutation[start : start + self.batch_size]
+                batch_states = states[indices]
+                batch_actions = actions[indices]
+                batch_old_log_probs = old_log_probs[indices]
+                batch_returns = returns[indices]
+                batch_advantages = advantages[indices]
+
+                logits, values = self.network(batch_states)
+                values = values.squeeze(-1)
+                probs = torch.softmax(logits, dim=-1)
+                dist = torch.distributions.Categorical(probs)
+
+                new_log_probs = dist.log_prob(batch_actions)
+                ratios = torch.exp(new_log_probs - batch_old_log_probs)
+
+                surrogate1 = ratios * batch_advantages
+                surrogate2 = torch.clamp(ratios, 1.0 - self.clip_epsilon, 1.0 + self.clip_epsilon) * batch_advantages
+                actor_loss = -torch.min(surrogate1, surrogate2).mean()
+                critic_loss = 0.5 * (batch_returns - values).pow(2).mean()
+                entropy = dist.entropy().mean()
+
+                loss = actor_loss + critic_loss - self.entropy_coef * entropy
+
+                self.optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=0.5)
+                self.optimizer.step()
+
+        self.buffer_states.clear()
+        self.buffer_actions.clear()
+        self.buffer_log_probs.clear()
+        self.buffer_values.clear()
+        self.buffer_rewards.clear()
+
+    def get_live_probabilities(self, sample_obs, sample_wealths, sample_alive_mask):
+        """Return a human-readable probability dictionary for debugging."""
+        choices = [int(x) if x is not None and x >= 0 else None for x in sample_obs[:self.n_agents]]
+        wealths = list(sample_wealths) if sample_wealths is not None else list(sample_obs[self.n_agents:2*self.n_agents])
+        state = self._build_global_observation(choices, wealths, sample_alive_mask)
+        with torch.no_grad():
+            logits, _ = self.network(state)
+            probs = torch.softmax(logits, dim=-1).cpu().numpy()
+        return {
+            "Pigouvian": f"{probs[0]*100:.1f}%",
+            "Progressive": f"{probs[1]*100:.1f}%",
+            "Survival": f"{probs[2]*100:.1f}%",
+            "FreeMarket": f"{probs[3]*100:.1f}%",
+        }
+
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        return sum(final_rewards)
