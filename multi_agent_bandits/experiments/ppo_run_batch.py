@@ -102,8 +102,99 @@ def plot_reward_decomposition_isolated(governor, save_path="test_PPO/reward_deco
     print(f"📊 Reward decomposition plot saved to: '{save_path}'")
 
 
+def plot_actor_critic_diagnostics(diagnostics_history, save_dir="./test_PPO"):
+    """Generates a 2x2 multi-panel diagnostic dashboard tracking the internal optimization health of the Actor and Critic networks.
+    
+    This function visualizes four key PPO training metrics across all update iterations:
+    1. Critic value loss and explained variance (how well the baseline predicts returns)
+    2. Policy entropy (exploration level in the action distribution)
+    3. KL divergence (how far each PPO step moves from the old policy)
+    4. Actor policy loss (optimization signal for the strategy selection head)
+    """
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Extract diagnostic time series from the history array.
+    trials = np.arange(1, len(diagnostics_history) + 1)
+    v_loss = [d["value_loss"] for d in diagnostics_history]
+    p_loss = [d["policy_loss"] for d in diagnostics_history]
+    entropy = [d["entropy"] for d in diagnostics_history]
+    kl_div = [d["kl_divergence"] for d in diagnostics_history]
+    exp_var = [d["explained_variance"] for d in diagnostics_history]
+
+    # Initialize the academic 2x2 grid style dashboard.
+    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle("PPO Governor Network Internal Health Dashboard", fontsize=16, fontweight='bold', y=0.96)
+
+    # --------------------------------------------------------
+    # Panel 1: Critic Value Loss & Predicted Variance Accuracy
+    # --------------------------------------------------------
+    ax1 = axs[0, 0]
+    color = 'tab:red'
+    ax1.set_xlabel('Training Iteration (Updates)', fontweight='bold')
+    ax1.set_ylabel('Critic MSE Value Loss', color=color, fontweight='bold')
+    ax1.plot(trials, v_loss, color=color, alpha=0.8, linewidth=2, label="Value Loss")
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax1.grid(True, linestyle="--", alpha=0.5)
+
+    # Instantiate a second y-axis sharing the same x-axis for Explained Variance.
+    ax1_twin = ax1.twinx()
+    color = 'tab:green'
+    ax1_twin.set_ylabel('Explained Variance (Target: 1.0)', color=color, fontweight='bold')
+    ax1_twin.plot(trials, exp_var, color=color, linestyle=":", alpha=0.9, linewidth=2, label="Explained Var")
+    ax1_twin.tick_params(axis='y', labelcolor=color)
+    ax1_twin.axhline(0.0, color='black', linestyle='-', alpha=0.3)
+    ax1.set_title("Critic Performance Evaluation", fontsize=12, fontweight='bold')
+
+    # --------------------------------------------------------
+    # Panel 2: Policy Exploration Entropy (The System Urgency Gauge)
+    # --------------------------------------------------------
+    ax2 = axs[0, 1]
+    ax2.plot(trials, entropy, color='purple', linewidth=2, label="Action Entropy")
+    ax2.set_xlabel('Training Iteration (Updates)', fontweight='bold')
+    ax2.set_ylabel('Shannon Entropy H(π)', fontweight='bold')
+    ax2.set_title("Actor Exploration / Policy Randomness", fontsize=12, fontweight='bold')
+    ax2.grid(True, linestyle="--", alpha=0.5)
+
+    # --------------------------------------------------------
+    # Panel 3: Step Policy Update Distance (KL Divergence Safe-Zones)
+    # --------------------------------------------------------
+    ax3 = axs[1, 0]
+    ax3.plot(trials, kl_div, color='darkorange', linewidth=2, label="Approx. KL")
+    ax3.set_xlabel('Training Iteration (Updates)', fontweight='bold')
+    ax3.set_ylabel('Approximate KL Divergence', fontweight='bold')
+    ax3.set_title("Policy Update Shift Distance (KL)", fontsize=12, fontweight='bold')
+    ax3.grid(True, linestyle="--", alpha=0.5)
+    # Highlight a standard target safety roof line (typically around 0.015 - 0.03).
+    ax3.axhline(0.02, color='red', linestyle='--', alpha=0.7, label='Target Constraint Ceiling')
+    ax3.legend(loc='upper right')
+
+    # --------------------------------------------------------
+    # Panel 4: Policy Optimization Step Gain Trend
+    # --------------------------------------------------------
+    ax4 = axs[1, 1]
+    ax4.plot(trials, p_loss, color='dodgerblue', linewidth=2, label="Policy Loss")
+    ax4.set_xlabel('Training Iteration (Updates)', fontweight='bold')
+    ax4.set_ylabel('Surrogate Objective Loss', fontweight='bold')
+    ax4.set_title("Actor Policy Advantage Gradient Direction", fontsize=12, fontweight='bold')
+    ax4.grid(True, linestyle="--", alpha=0.5)
+    ax4.axhline(0.0, color='black', linestyle='-', alpha=0.3)
+
+    # Clean layout wrapping up.
+    plt.tight_layout(rect=[0, 0.03, 1, 0.93])
+    save_path = os.path.join(save_dir, "actor_critic_health.png")
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+    print(f"📊 Internal Actor-Critic structural dashboard saved to: '{save_path}'")
+
+
 def run_phase(governor, n_trials, steps, n_agents, is_training=True):
-    """Execute multiple environment trials and collect aggregate metrics."""
+    """Run a block of independent trials and optionally train the PPO governor.
+
+    During training, this function runs the environment for each trial,
+    lets the governor collect decision-interval trajectories, and calls
+    `update_ppo()` after each trial so the agent learns from the most recent
+    10-step macro transitions.
+    """
     batch_total_rewards = []
     batch_survival_counts = []
     batch_extinction_steps = []
@@ -126,6 +217,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
         runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir=None)
 
         try:
+            # Silence verbose environment output during bulk training/testing.
             sys.stdout = open(os.devnull, 'w')
             runner.run(
                 plot_rewards=False,
@@ -144,6 +236,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
             else:
                 print(f"⚠️ Warning: No PPO transitions collected in trial {trial + 1}. Skipping update.")
         elif hasattr(governor, "buffer_states"):
+            # In testing mode we clear any leftover PPO buffers.
             governor.buffer_states.clear()
             governor.buffer_actions.clear()
             governor.buffer_log_probs.clear()
@@ -173,6 +266,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
 
 
 def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
+    """Build and execute the PPO governor training + evaluation workflow."""
     n_agents = 30
     governor = PPOGovernor(
         n_agents=n_agents,
@@ -193,7 +287,13 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     print(f"🚀 Starting {governor_name} training run...")
     train_metrics = run_phase(governor, train_n_trials, steps, n_agents, is_training=True)
 
+    # Plot internal PPO training diagnostics after training phase completes.
+    if is_learning_model and hasattr(governor, "ppo_diagnostics_history"):
+        print("\n📊 Generating Actor-Critic internal health diagnostic dashboard...")
+        plot_actor_critic_diagnostics(diagnostics_history=governor.ppo_diagnostics_history, save_dir="./test_PPO")
+
     print(f"\n🧪 Evaluating {governor_name} performance...")
+    # Evaluation uses argmax selection instead of sampling.
     governor.is_evaluating = True
     test_metrics = run_phase(governor, test_n_trials, steps, n_agents, is_training=False)
     governor.is_evaluating = False
@@ -227,6 +327,8 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     )
     visual_agents = [EpsilonGreedyAgent(visual_env.n_arms) for _ in range(n_agents)]
     visual_runner = ExperimentRunner(visual_env, visual_agents, timestep_limit=steps, save_dir="test_PPO")
+
+    # Single visualization run to save plots and confirm behavior.
     visual_runner.run(
         plot_rewards=True,
         plot_frequencies=True,

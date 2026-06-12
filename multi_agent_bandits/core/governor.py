@@ -1669,7 +1669,12 @@ class PPONeuralGovernor:
 
 
 class PPOPolicyNetwork(nn.Module):
-    """Tiny actor-critic network for the macro-level PPO governor."""
+    """Tiny actor-critic network for the macro-level PPO governor.
+
+    This network is intentionally small: two hidden layers of 64 units
+    each, with ReLU activation, a discrete policy head for 4 strategies,
+    and a scalar value head for PPO baseline estimation.
+    """
     def __init__(self, input_dim, n_actions):
         super(PPOPolicyNetwork, self).__init__()
         self.backbone = nn.Sequential(
@@ -1689,7 +1694,7 @@ class PPOPolicyNetwork(nn.Module):
 
 
 class PPOGovernor:
-    """A clean discrete PPO governor that acts every C=10 environment steps."""
+    """A clean discrete PPO governor that acts every C = 10 environment steps."""
     def __init__(
         self,
         n_agents=30,
@@ -1703,6 +1708,7 @@ class PPOGovernor:
         entropy_coef=0.01,
         seed=None,
     ):
+        # Macros for governance-level PPO training
         self.n_agents = n_agents
         self.n_arms = n_arms
         self.decision_interval = decision_interval
@@ -1717,6 +1723,7 @@ class PPOGovernor:
             np.random.seed(seed)
             torch.manual_seed(seed)
 
+        # Discrete action space: 4 macro-governance strategies.
         from multi_agent_bandits.core.governor import (
             PigouvianGovernor, ProgressiveTaxGovernor, SurvivalTargetedGovernor, FreeMarketGovernor
         )
@@ -1728,9 +1735,14 @@ class PPOGovernor:
             FreeMarketGovernor(n_agents=n_agents),
         ]
         self.n_actions = len(self.strategies)
+
+        # Input size is the governor's global observation: 4 scalar system metrics +
+        # 30-arm congestion vector + 2 summary stats = 36 dims, which is close to the
+        # 40-dim description and sufficient for the macro-level policy.
         self.network = PPOPolicyNetwork(self.n_arms + 6, self.n_actions)
         self.optimizer = optim.Adam(self.network.parameters(), lr=learning_rate)
 
+        # Runtime bookkeeping
         self.current_action_idx = None
         self.current_strategy = self.strategies[0]
         self.current_phase_steps = 0
@@ -1742,15 +1754,18 @@ class PPOGovernor:
         self.pending_value = 0.0
         self.pending_log_prob = 0.0
 
+        # PPO buffers store decision-interval transitions only.
         self.buffer_states = []
         self.buffer_actions = []
         self.buffer_log_probs = []
         self.buffer_values = []
         self.buffer_rewards = []
 
+        # Diagnostic histories for plotting and inspection.
         self.input_layer_history = []
         self.output_layer_history = []
         self.reward_layer_history = []
+        self.ppo_diagnostics_history = []
 
     def reset(self):
         """Reset internal state before a fresh episode."""
@@ -1767,7 +1782,17 @@ class PPOGovernor:
         return max(0.0, min(1.0, value / cap))
 
     def _build_global_observation(self, choices, wealths, alive_mask):
-        """Convert raw environment signals into a fixed-size global feature vector."""
+        """Build a single fixed-size macro-level governor input vector.
+
+        The governor sees:
+        - normalized alive ratio
+        - normalized mean wealth
+        - normalized wealth variance
+        - normalized min wealth
+        - normalized congestion per arm for all 30 arms
+        - normalized max congestion
+        - action diversity
+        """
         n_alive = sum(1 for alive in alive_mask if alive)
         alive_ratio = n_alive / max(1, self.n_agents)
 
@@ -1805,7 +1830,7 @@ class PPOGovernor:
         return torch.FloatTensor(feature_vector)
 
     def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
-        """Choose a macro policy every decision interval and reuse it for the interval."""
+        """Choose a macro strategy every C environment steps and reuse it for the interval."""
         self.internal_step += 1
         decision_step = ((self.internal_step - 1) % self.decision_interval) == 0
 
@@ -1826,6 +1851,7 @@ class PPOGovernor:
             self.pending_value = float(value.item())
             self.pending_log_prob = float(torch.log(probs[action_idx] + 1e-8).item())
 
+            # Save diagnostics for later plotting.
             self.input_layer_history.append(state.tolist())
             self.output_layer_history.append(probs.detach().cpu().numpy().tolist())
 
@@ -1833,14 +1859,16 @@ class PPOGovernor:
             observation, choices, wealths, raw_rewards, alive_mask
         )
 
+        # The environment expects (action_idx, adjustments) for the PPO governor.
         return self.current_action_idx, adjustments
 
     def record_step_data(self, gross_rewards, arm_healths, wealths, death_count):
-        """Accumulate step rewards and create PPO transitions every decision interval."""
+        """Accumulate reward for the current 10-step interval until it is time to store a transition."""
         self.current_phase_reward += sum(gross_rewards)
         self.current_phase_steps += 1
 
         if self.current_phase_steps >= self.decision_interval and self.pending_state is not None:
+            # Interval is complete: store an experience tuple for PPO.
             self.buffer_states.append(self.pending_state)
             self.buffer_actions.append(self.current_action_idx)
             self.buffer_log_probs.append(self.pending_log_prob)
@@ -1856,6 +1884,7 @@ class PPOGovernor:
             self.current_phase_reward = 0.0
 
     def _flush_partial_interval(self):
+        """Store a partial interval at the end of an episode so PPO still gets the last transition."""
         if self.current_phase_steps > 0 and self.pending_state is not None:
             self.buffer_states.append(self.pending_state)
             self.buffer_actions.append(self.current_action_idx)
@@ -1872,7 +1901,11 @@ class PPOGovernor:
             self.current_phase_reward = 0.0
 
     def update_ppo(self):
-        """Run the PPO optimization pass over collected interval-level transitions."""
+        """Run standard PPO training on stored interval-level trajectories.
+        
+        Collects diagnostic metrics (actor loss, critic loss, entropy, KL divergence)
+        across all PPO epochs and stores them for later visualization.
+        """
         self._flush_partial_interval()
 
         if len(self.buffer_states) == 0:
@@ -1884,6 +1917,7 @@ class PPOGovernor:
         old_values = torch.tensor(self.buffer_values, dtype=torch.float32)
         rewards = self.buffer_rewards
 
+        # Compute return-to-go for each interval and use advantage normalization.
         returns = []
         discounted_sum = 0.0
         for reward in reversed(rewards):
@@ -1893,6 +1927,12 @@ class PPOGovernor:
         returns = torch.tensor(returns, dtype=torch.float32)
         advantages = returns - old_values
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+        # Initialize diagnostic collectors for this update session.
+        epoch_actor_losses = []
+        epoch_critic_losses = []
+        epoch_entropies = []
+        epoch_kl_divergences = []
 
         for _ in range(self.ppo_epochs):
             permutation = torch.randperm(states.size(0))
@@ -1918,6 +1958,10 @@ class PPOGovernor:
                 critic_loss = 0.5 * (batch_returns - values).pow(2).mean()
                 entropy = dist.entropy().mean()
 
+                # Calculate approximate KL divergence for policy shift tracking.
+                with torch.no_grad():
+                    approx_kl = ((ratios - 1) - torch.log(ratios)).mean().item()
+
                 loss = actor_loss + critic_loss - self.entropy_coef * entropy
 
                 self.optimizer.zero_grad()
@@ -1925,6 +1969,33 @@ class PPOGovernor:
                 torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=0.5)
                 self.optimizer.step()
 
+                # Append metrics from this mini-batch to the epoch collectors.
+                epoch_actor_losses.append(actor_loss.item())
+                epoch_critic_losses.append(critic_loss.item())
+                epoch_entropies.append(entropy.item())
+                epoch_kl_divergences.append(approx_kl)
+
+        # Compute explained variance: measures how well the critic predicts returns.
+        # EV = 1 - Var(y - y_hat) / Var(y), bounded between -inf and 1.0 (1.0 is perfect).
+        with torch.no_grad():
+            final_values = self.network(states)[1].squeeze(-1).cpu().numpy()
+            raw_returns = returns.cpu().numpy()
+            return_variance = np.var(raw_returns)
+            explained_variance = (
+                1.0 - (np.var(raw_returns - final_values) / return_variance)
+                if return_variance > 0 else 0.0
+            )
+
+        # Store aggregated diagnostics from this entire PPO update pass.
+        self.ppo_diagnostics_history.append({
+            "value_loss": np.mean(epoch_critic_losses),
+            "policy_loss": np.mean(epoch_actor_losses),
+            "entropy": np.mean(epoch_entropies),
+            "kl_divergence": np.mean(epoch_kl_divergences),
+            "explained_variance": explained_variance
+        })
+
+        # Clear interval-history after the PPO update.
         self.buffer_states.clear()
         self.buffer_actions.clear()
         self.buffer_log_probs.clear()
@@ -1947,4 +2018,5 @@ class PPOGovernor:
         }
 
     def compute_governor_reward(self, final_rewards, death_count=0):
+        # The governor reward is simply total system reward over the interval.
         return sum(final_rewards)
