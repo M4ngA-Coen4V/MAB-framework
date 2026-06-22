@@ -55,7 +55,7 @@ def plot_output_layer_dynamics(governor, save_path="test_PPO/output_layer_trends
 
     history_matrix = np.array(governor.output_layer_history)
     timesteps = range(len(history_matrix))
-    labels = ["Pigouvian", "Progressive", "Survival", "FreeMarket"]
+    labels = ["Pigouvian(δ=0.15)", "Progressive", "Wealth Multiplier", "FreeMarket" ]
     colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd"]
 
     plt.figure(figsize=(12, 6))
@@ -209,7 +209,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
         env = DepletingCommonsEnvironment(
             n_agents=n_agents,
             death_threshold=0.0,
-            initial_wealth=200.0,
+            initial_wealth=500.0,
             step_cost=3.0,
             governor=governor
         )
@@ -269,8 +269,6 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     """Build and execute the PPO governor training + evaluation workflow."""
     n_agents = 30
     
-    governor = PigouvianGovernor(n_agents=30, delta_drain=0.15, survival_threshold=10.0)
-    '''
     governor = PPOGovernor(
         n_agents=n_agents,
         n_arms=30,
@@ -284,7 +282,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
         lam=0.95,
         seed=None,
     )
-    '''
+
 
     governor_name = governor.__class__.__name__
     is_learning_model = hasattr(governor, "update_ppo")
@@ -340,7 +338,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     visual_env = DepletingCommonsEnvironment(
         n_agents=n_agents,
         death_threshold=0.0,
-        initial_wealth=200.0,
+        initial_wealth=500.0,
         step_cost=3.0,
         governor=governor,
     )
@@ -364,4 +362,4 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
 
 
 if __name__ == "__main__":
-    run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000)
+    run_batch_simulation(train_n_trials=400, test_n_trials=100, steps=1000)

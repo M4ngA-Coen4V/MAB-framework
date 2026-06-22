@@ -263,6 +263,156 @@ class CommunistGovernor:
         return sum(final_rewards)
     
 
+class WealthMultiplierGovernor:
+    """
+    A governor that amplifies inequality through progressive taxation on the poor 
+    and wealth-proportional subsidies to the rich.
+    
+    Key features:
+    - Poorer agents pay HIGHER tax rates (scaling with poverty level)
+    - Richer agents receive LARGER subsidies (scaling with wealth)
+    - Creates a powerful wealth multiplication effect
+    """
+    
+    def __init__(self, n_agents=30, base_tax_rate=0.2, max_tax_rate=0.6, subsidy_scale=1.5):
+        """
+        Initialize the Wealth Multiplier Governor.
+        
+        Args:
+            n_agents (int): Total number of agents in the system.
+            base_tax_rate (float): Minimum tax rate for the least poor (0.0 to 1.0).
+            max_tax_rate (float): Maximum tax rate for the poorest (0.0 to 1.0).
+            subsidy_scale (float): Multiplier for wealth-proportional subsidies (>1.0 amplifies inequality).
+        """
+        self.n_agents = n_agents
+        self.base_tax_rate = base_tax_rate
+        self.max_tax_rate = max_tax_rate
+        self.subsidy_scale = subsidy_scale
+        self.last_action = None
+    
+    def choose_action(self, observation, choices, wealths, raw_rewards, alive_mask):
+        """
+        Implements wealth multiplier mechanism where poverty level determines tax rate
+        and wealth level determines subsidy size.
+        
+        Args:
+            observation (list): Processed state vector (ignored).
+            choices (list): Raw choices made by the bandits this turn.
+            wealths (list): Current financial ledger levels for each agent (BEFORE rewards).
+            raw_rewards (list): Freshly harvested reward payouts before taxes.
+            alive_mask (list of bool): Boolean flags indicating who is alive.
+            
+        Returns:
+            list: Zero-sum adjustment vector of size n_agents.
+        """
+        # 1. Get living agents and calculate their post-reward wealth
+        living_indices = [i for i, alive in enumerate(alive_mask) if alive]
+        if not living_indices:
+            return [0.0] * self.n_agents
+        
+        # 🔥 CRITICAL FIX: Calculate post-reward wealth (wealth + earnings)
+        post_reward_wealths = []
+        for idx in living_indices:
+            # New wealth = previous wealth + what they earned this round
+            new_wealth = wealths[idx] + raw_rewards[idx]
+            post_reward_wealths.append((idx, new_wealth))
+        
+        # 2. Sort by post-reward wealth (poor to rich)
+        sorted_agents = sorted(post_reward_wealths, key=lambda x: x[1])
+        n_living = len(sorted_agents)
+        
+        # 3. Split into poor (bottom 50%) and rich (top 50%)
+        split_point = n_living // 2
+        poor_agents = sorted_agents[:split_point]  # Bottom half
+        rich_agents = sorted_agents[split_point:]   # Top half
+        
+        # Handle odd number of agents
+        if n_living % 2 == 1:
+            if len(poor_agents) > 0 and len(rich_agents) > 0:
+                median_agent = poor_agents.pop()
+                rich_agents.insert(0, median_agent)
+        
+        # 4. Calculate poverty-progressive tax from poor agents (based on post-reward wealth)
+        total_tax_collected = 0.0
+        individual_taxes = [0.0] * self.n_agents
+        
+        if poor_agents:
+            # Find the wealth range among poor agents (post-reward)
+            poor_wealths = [w for _, w in poor_agents]
+            min_poor_wealth = min(poor_wealths) if poor_wealths else 0
+            max_poor_wealth = max(poor_wealths) if poor_wealths else 1
+            
+            # Avoid division by zero
+            wealth_range = max(1e-10, max_poor_wealth - min_poor_wealth)
+            
+            for idx, post_wealth in poor_agents:
+                if post_wealth > 0:
+                    # Calculate poverty level: 0 = least poor, 1 = poorest
+                    if wealth_range > 0:
+                        poverty_level = 1.0 - ((post_wealth - min_poor_wealth) / wealth_range)
+                    else:
+                        poverty_level = 0.5  # All equally poor
+                    
+                    # Tax rate scales with poverty level
+                    effective_tax_rate = self.base_tax_rate + (self.max_tax_rate - self.base_tax_rate) * poverty_level
+                    
+                    # Apply tax with safety margin (don't take everything)
+                    max_taxable = post_wealth * 0.95  # Leave 5% to survive
+                    tax = min(post_wealth * effective_tax_rate, max_taxable)
+                    
+                    individual_taxes[idx] = tax
+                    total_tax_collected += tax
+        
+        # 5. Distribute to rich agents proportionally to their post-reward wealth (with scaling)
+        adjustments = [0.0] * self.n_agents
+        
+        if total_tax_collected > 0 and rich_agents:
+            rich_indices = [idx for idx, _ in rich_agents]
+            rich_wealths = [w for _, w in rich_agents]
+            
+            # Add a small epsilon to avoid division by zero
+            total_rich_wealth = max(sum(rich_wealths), 1e-10)
+            
+            # Calculate wealth-proportional shares with scaling
+            scaled_shares = []
+            for idx, post_wealth in rich_agents:
+                # Base proportional share
+                base_share = post_wealth / total_rich_wealth
+                
+                # Apply scaling to amplify inequality
+                scaled_share = base_share ** self.subsidy_scale
+                scaled_shares.append((idx, scaled_share))
+            
+            # Normalize to ensure we distribute exactly total_tax_collected
+            total_scaled = sum(share for _, share in scaled_shares)
+            if total_scaled > 0:
+                for idx, scaled_share in scaled_shares:
+                    normalized_share = scaled_share / total_scaled
+                    subsidy = total_tax_collected * normalized_share
+                    adjustments[idx] = subsidy
+            else:
+                # Fallback to equal distribution
+                subsidy_per_rich = total_tax_collected / len(rich_agents)
+                for idx in rich_indices:
+                    adjustments[idx] = subsidy_per_rich
+        
+        # 6. Combine taxes and subsidies into final adjustments
+        final_adjustments = []
+        for idx, alive in enumerate(alive_mask):
+            if alive:
+                net_change = adjustments[idx] - individual_taxes[idx]
+                final_adjustments.append(net_change)
+            else:
+                final_adjustments.append(0.0)
+        
+        return final_adjustments
+    
+    def compute_governor_reward(self, final_rewards, death_count=0):
+        """
+        Evaluates performance to keep the historical metrics tracking unbroken.
+        """
+        return sum(final_rewards)
+
 class PigouvianGovernor:
     """
     A rule-based baseline governor that implements a targeted Pigouvian tax.
@@ -326,7 +476,7 @@ class PigouvianGovernor:
                     tax_amount = excess_agents * self.delta_drain
                     
                     
-                    #tax_amount = min(tax_amount, 0)
+                    tax_amount = min(tax_amount, 0)
                     
                     individual_taxes[idx] = tax_amount
                     total_tax_collected += tax_amount
@@ -1739,7 +1889,7 @@ class PPOGovernor:
         self.strategies = [
             PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0),
             ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.4),
-            SurvivalTargetedGovernor(n_agents=n_agents, survival_cost=3.0),
+            WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.01, max_tax_rate=0.05, subsidy_scale=1.2),
             FreeMarketGovernor(n_agents=n_agents),
         ]
         self.n_actions = len(self.strategies)

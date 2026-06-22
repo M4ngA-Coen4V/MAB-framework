@@ -2,7 +2,7 @@ import os
 import sys
 import numpy as np
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import PigouvianGovernor, ProgressiveTaxGovernor, SurvivalTargetedGovernor, FreeMarketGovernor
+from multi_agent_bandits.core.governor import PigouvianGovernor, ProgressiveTaxGovernor, SurvivalTargetedGovernor, FreeMarketGovernor, WealthMultiplierGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 
@@ -28,7 +28,7 @@ def run_phase(governor, n_trials, steps, n_agents):
         env = DepletingCommonsEnvironment(
             n_agents=n_agents,
             death_threshold=0.0,
-            initial_wealth=200.0,
+            initial_wealth=500.0,
             step_cost=3.0,
             governor=governor
         )
@@ -83,7 +83,8 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
 
     #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
     #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.10)
-    governor = FreeMarketGovernor(n_agents=n_agents)
+    #governor = FreeMarketGovernor(n_agents=n_agents)
+    governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.004, max_tax_rate=0.02, subsidy_scale=1.2)
     governor_name = governor.__class__.__name__
 
     print(f"🧪 Evaluating static strategy: {governor_name} over {test_n_trials} trials...")
@@ -112,7 +113,7 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
     visual_env = DepletingCommonsEnvironment(
         n_agents=n_agents,
         death_threshold=0.0,
-        initial_wealth=200.0,
+        initial_wealth=500.0,
         step_cost=3.0,
         governor=governor,
     )
@@ -133,4 +134,4 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
 
 if __name__ == "__main__":
     # Default: evaluate PigouvianGovernor with parameters matching the PPO baseline's strategy.
-    run_batch_simulation(test_n_trials=100, steps=1000)
+    run_batch_simulation(test_n_trials=10, steps=1000)
