@@ -1889,7 +1889,7 @@ class PPOGovernor:
         self.strategies = [
             PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0),
             ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.4),
-            WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.01, max_tax_rate=0.05, subsidy_scale=1.2),
+            WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=1.2),
             FreeMarketGovernor(n_agents=n_agents),
         ]
         self.n_actions = len(self.strategies)

@@ -209,7 +209,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
         env = DepletingCommonsEnvironment(
             n_agents=n_agents,
             death_threshold=0.0,
-            initial_wealth=500.0,
+            initial_wealth=250.0,
             step_cost=3.0,
             governor=governor
         )
@@ -338,7 +338,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     visual_env = DepletingCommonsEnvironment(
         n_agents=n_agents,
         death_threshold=0.0,
-        initial_wealth=500.0,
+        initial_wealth=250.0,
         step_cost=3.0,
         governor=governor,
     )

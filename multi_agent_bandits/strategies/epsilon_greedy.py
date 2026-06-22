@@ -8,7 +8,8 @@ class EpsilonGreedyAgent(Agent):
 
         #track estimates and counts
         self.counts = [0] * n_arms
-        self.values = [0.0] * n_arms
+        #Initialize with small random values to break symmetry
+        self.values = [random.uniform(0, 0.01) for _ in range(n_arms)]
         self.last_arm = None
 
     def choose_arm(self):

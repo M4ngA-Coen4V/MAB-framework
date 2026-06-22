@@ -28,7 +28,7 @@ def run_phase(governor, n_trials, steps, n_agents):
         env = DepletingCommonsEnvironment(
             n_agents=n_agents,
             death_threshold=0.0,
-            initial_wealth=500.0,
+            initial_wealth=250.0,
             step_cost=3.0,
             governor=governor
         )
@@ -84,7 +84,7 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
     #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
     #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.10)
     #governor = FreeMarketGovernor(n_agents=n_agents)
-    governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.004, max_tax_rate=0.02, subsidy_scale=1.2)
+    governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=1.2)
     governor_name = governor.__class__.__name__
 
     print(f"🧪 Evaluating static strategy: {governor_name} over {test_n_trials} trials...")
@@ -113,7 +113,7 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
     visual_env = DepletingCommonsEnvironment(
         n_agents=n_agents,
         death_threshold=0.0,
-        initial_wealth=500.0,
+        initial_wealth=250.0,
         step_cost=3.0,
         governor=governor,
     )
