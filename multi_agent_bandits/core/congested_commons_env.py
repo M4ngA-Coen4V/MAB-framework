@@ -327,25 +327,42 @@ class DepletingCommonsEnvironment(Environment):
         
         #[Phase 3: Governor Tax/Subsidy]
         adjustments = [0.0] * len(agents)
-            
+
         if self.governor and any(self.is_alive):
-            observation = self._build_governor_observation(choices)    
-            action_idx, adjustments = self.governor.choose_action(
+            observation = self._build_governor_observation(choices)
+            # Allow governors to return either (action_idx, adjustments)
+            # or just adjustments. Be robust to both interfaces.
+            result = self.governor.choose_action(
                 observation=observation,
                 choices=choices,
                 wealths=list(self.agent_wealths),
                 raw_rewards=list(raw_rewards),
-                alive_mask=list(self.is_alive)
+                alive_mask=list(self.is_alive),
             )
-            
-			# We track how well the specific 'action_idx' (the strategy) 
-            # performed based on the current system-wide reward impact.
-            if hasattr(self.governor, "update_strategy_performance"):
-                self.governor.update_strategy_performance(
-                    action_idx=action_idx, 
-                    reward=sum(adjustments) # The net impact of the Governor's choice
-                )
-            
+
+            action_idx = None
+            adjustments = None
+            if isinstance(result, (tuple, list)) and len(result) == 2:
+                maybe_idx, maybe_adj = result
+                try:
+                    action_idx = int(maybe_idx)
+                    adjustments = maybe_adj
+                except Exception:
+                    adjustments = result
+            else:
+                adjustments = result
+
+            # Optionally record strategy performance if the governor provided an index
+            if action_idx is not None and hasattr(self.governor, "update_strategy_performance"):
+                try:
+                    self.governor.update_strategy_performance(
+                        action_idx=action_idx,
+                        reward=sum(adjustments) if adjustments is not None else 0.0,
+                    )
+                except Exception:
+                    pass
+
+            # Apply computed adjustments to alive agents
             for agent_idx, adjustment in enumerate(adjustments):
                 if self.is_alive[agent_idx]:
                     final_rewards[agent_idx] = raw_rewards[agent_idx] + adjustment
