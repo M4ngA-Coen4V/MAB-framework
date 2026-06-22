@@ -81,10 +81,10 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
     """
     n_agents=30
 
-    #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
+    governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
     #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.10)
     #governor = FreeMarketGovernor(n_agents=n_agents)
-    governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=1.2)
+    #governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=1.2)
     governor_name = governor.__class__.__name__
 
     print(f"🧪 Evaluating static strategy: {governor_name} over {test_n_trials} trials...")
@@ -134,4 +134,4 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
 
 if __name__ == "__main__":
     # Default: evaluate PigouvianGovernor with parameters matching the PPO baseline's strategy.
-    run_batch_simulation(test_n_trials=10, steps=1000)
+    run_batch_simulation(test_n_trials=100, steps=1000)
