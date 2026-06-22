@@ -496,7 +496,7 @@ class ExperimentRunner:
             if hasattr(self, "rewards_log") and len(self.rewards_log) > t:
                 step_rewards = np.array(self.rewards_log[t])
                 living_rewards = step_rewards[alive_history[t, :]]
-                net_extracted_wealth[t] = np.sum(np.maximum(0, living_rewards))
+                net_extracted_wealth[t] = np.sum(living_rewards)
 
             # Look at what arms were actually chosen by the living agents at this step
             if hasattr(self, "choices_log") and len(self.choices_log) > t:

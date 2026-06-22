@@ -325,8 +325,12 @@ class PigouvianGovernor:
                     # Tax matches the exact dynamic ecological damage caused to the arm
                     tax_amount = excess_agents * self.delta_drain
                     
+                    
+                    #tax_amount = min(tax_amount, 0)
+                    
                     individual_taxes[idx] = tax_amount
                     total_tax_collected += tax_amount
+
 
         # 3. Identify struggling agents that qualify for a survival subsidy
         struggling_agents = []

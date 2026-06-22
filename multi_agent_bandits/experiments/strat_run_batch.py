@@ -77,14 +77,13 @@ def run_phase(governor, n_trials, steps, n_agents):
 
 def run_batch_simulation(test_n_trials=100, steps=1000):
     """Run a batch evaluation for a single (non-learning) governor class.
-
-    - `governor_cls` should be a governor class (not an instance).
-    - `governor_kwargs` is an optional dict passed to the governor constructor.
     This runner does NOT perform any training.
     """
     n_agents=30
 
-    governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
+    #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=20.0)
+    #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.10)
+    governor = FreeMarketGovernor(n_agents=n_agents)
     governor_name = governor.__class__.__name__
 
     print(f"🧪 Evaluating static strategy: {governor_name} over {test_n_trials} trials...")
