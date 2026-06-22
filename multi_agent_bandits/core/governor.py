@@ -338,29 +338,31 @@ class PigouvianGovernor:
         adjustments = [0.0] * self.n_agents
 
         if total_tax_collected > 0.0:
+            '''
             if struggling_agents:
                 # Target Option A: Distribute equally among agents near the death threshold
                 subsidy_per_strugler = total_tax_collected / len(struggling_agents)
                 for idx in struggling_agents:
                     adjustments[idx] = subsidy_per_strugler
             else:
-                # Target Option B: If everyone is wealthy, give it to agents on underused arms
-                underused_agents = []
-                for idx, choice in enumerate(choices):
-                    if alive_mask[idx] and arm_counts.get(choice, 0) == 1:
-                        underused_agents.append(idx)
-                        
-                if underused_agents:
-                    subsidy_per_underused = total_tax_collected / len(underused_agents)
-                    for idx in underused_agents:
-                        adjustments[idx] = subsidy_per_underused
-                else:
-                    # Fallback Option C: If everyone is on crowded arms, give a flat refund
-                    num_alive = sum(alive_mask)
-                    subsidy_flat = total_tax_collected / num_alive
-                    for idx, alive in enumerate(alive_mask):
-                        if alive:
-                            adjustments[idx] = subsidy_flat
+            '''
+            # Target Option B: If everyone is wealthy, give it to agents on underused arms
+            underused_agents = []
+            for idx, choice in enumerate(choices):
+                if alive_mask[idx] and arm_counts.get(choice, 0) == 1:
+                    underused_agents.append(idx)
+                    
+            if underused_agents:
+                subsidy_per_underused = total_tax_collected / len(underused_agents)
+                for idx in underused_agents:
+                    adjustments[idx] = subsidy_per_underused
+            else:
+                # Fallback Option C: If everyone is on crowded arms, give a flat refund
+                num_alive = sum(alive_mask)
+                subsidy_flat = total_tax_collected / num_alive
+                for idx, alive in enumerate(alive_mask):
+                    if alive:
+                        adjustments[idx] = subsidy_flat
 
         # 5. Combine the negative taxes and positive subsidies into the final adjustment vector
         final_adjustments = []

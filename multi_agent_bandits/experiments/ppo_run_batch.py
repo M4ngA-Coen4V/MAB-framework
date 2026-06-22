@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import PPOGovernor
+from multi_agent_bandits.core.governor import PPOGovernor, PigouvianGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 
@@ -268,6 +268,9 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True):
 def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     """Build and execute the PPO governor training + evaluation workflow."""
     n_agents = 30
+    
+    governor = PigouvianGovernor(n_agents=30, delta_drain=0.15, survival_threshold=10.0)
+    '''
     governor = PPOGovernor(
         n_agents=n_agents,
         n_arms=30,
@@ -281,6 +284,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
         lam=0.95,
         seed=None,
     )
+    '''
 
     governor_name = governor.__class__.__name__
     is_learning_model = hasattr(governor, "update_ppo")
