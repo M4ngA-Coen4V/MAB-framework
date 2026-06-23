@@ -25,3 +25,7 @@ def custom_100_20_10_share(raw_reward, n_agents):
     else:
         raise ValueError("Invalid number of agents: {}".format(n_agents))
     
+def full_reward_share(raw_reward, n_agents):
+    """Everyone gets the full reward."""
+    return [raw_reward] * n_agents
+    

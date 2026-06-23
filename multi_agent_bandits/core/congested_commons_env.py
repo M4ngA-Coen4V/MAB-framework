@@ -3,7 +3,7 @@ from unittest import result
 from multi_agent_bandits.core import agent
 from multi_agent_bandits.core.environment import Environment
 from multi_agent_bandits.core.arm import Arm
-from multi_agent_bandits.core.reward_sharing import custom_100_20_10_share, linear_share
+from multi_agent_bandits.core.reward_sharing import custom_100_20_10_share, linear_share, full_reward_share
 
 
 class CongestedCommonsEnvironment(Environment):
@@ -300,7 +300,7 @@ class DepletingCommonsEnvironment(Environment):
             total_available_reward = base_reward * self.arm_health[arm_idx]
 
             # Use the cleanly imported linear_share function
-            shares = linear_share(total_available_reward, n_agents_on_arm)
+            shares = full_reward_share(total_available_reward, n_agents_on_arm)
             
             for share, a_id in zip(shares, agent_ids):
                 raw_rewards[a_id] = share

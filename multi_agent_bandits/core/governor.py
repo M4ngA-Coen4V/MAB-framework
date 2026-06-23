@@ -1883,13 +1883,13 @@ class PPOGovernor:
 
         # Discrete action space: 4 macro-governance strategies.
         from multi_agent_bandits.core.governor import (
-            PigouvianGovernor, ProgressiveTaxGovernor, SurvivalTargetedGovernor, FreeMarketGovernor
+            PigouvianGovernor, ProgressiveTaxGovernor, WealthMultiplierGovernor, FreeMarketGovernor
         )
 
         self.strategies = [
             PigouvianGovernor(n_agents=n_agents, delta_drain=0.30, survival_threshold=100.0),
             ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.4),
-            WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=1.2),
+            WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0),
             FreeMarketGovernor(n_agents=n_agents),
         ]
         self.n_actions = len(self.strategies)
