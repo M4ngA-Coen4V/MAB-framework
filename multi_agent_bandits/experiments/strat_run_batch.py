@@ -83,8 +83,8 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
 
     #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.30, survival_threshold=20.0)
     #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.10)
-    #governor = FreeMarketGovernor(n_agents=n_agents)
-    governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)
+    governor = FreeMarketGovernor(n_agents=n_agents)
+    #governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)
     governor_name = governor.__class__.__name__
 
     print(f"🧪 Evaluating static strategy: {governor_name} over {test_n_trials} trials...")

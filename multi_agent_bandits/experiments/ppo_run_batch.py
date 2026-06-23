@@ -362,4 +362,4 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
 
 
 if __name__ == "__main__":
-    run_batch_simulation(train_n_trials=400, test_n_trials=100, steps=1000)
+    run_batch_simulation(train_n_trials=1000, test_n_trials=100, steps=1000)

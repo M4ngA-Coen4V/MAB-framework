@@ -249,7 +249,7 @@ class DepletingCommonsEnvironment(Environment):
 		]
 
         # Initialize base environment using the imported linear_share function
-        super().__init__(n_agents=n_agents, arms=arms, collision_policy=linear_share)
+        super().__init__(n_agents=n_agents, arms=arms, collision_policy=full_reward_share)
 
         # Ecological Parameters
         self.arm_health = [1.0] * self.n_arms    # All arms start at 100% capacity (1.0)
