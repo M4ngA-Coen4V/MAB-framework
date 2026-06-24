@@ -2,7 +2,7 @@ import os
 import sys
 import numpy as np
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import PigouvianGovernor, ProgressiveTaxGovernor, SurvivalTargetedGovernor, FreeMarketGovernor, WealthMultiplierGovernor
+from multi_agent_bandits.core.governor import PigouvianGovernor, ProgressiveTaxGovernor, SurvivalTargetedGovernor, FreeMarketGovernor, WealthMultiplierGovernor, WealthEqualizerGovernor
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
 
@@ -81,10 +81,11 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
     """
     n_agents=30
 
-    #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.30, survival_threshold=20.0)
-    #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.10)
-    governor = FreeMarketGovernor(n_agents=n_agents)
-    #governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)
+    governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.30, survival_threshold=100.0)
+    #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.20)
+    #governor = FreeMarketGovernor(n_agents=n_agents)
+    #governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=1.0)
+    #governor = WealthEqualizerGovernor(n_agents=n_agents, base_tax_rate=0.002, max_tax_rate=0.01, subsidy_scale=0.0)
     governor_name = governor.__class__.__name__
 
     print(f"🧪 Evaluating static strategy: {governor_name} over {test_n_trials} trials...")
