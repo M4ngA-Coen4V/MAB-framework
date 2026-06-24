@@ -81,9 +81,9 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
     """
     n_agents=30
 
-    governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.30, survival_threshold=100.0)
+    #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=100.0)
     #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.20)
-    #governor = FreeMarketGovernor(n_agents=n_agents)
+    governor = FreeMarketGovernor(n_agents=n_agents)
     #governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=1.0)
     #governor = WealthEqualizerGovernor(n_agents=n_agents, base_tax_rate=0.002, max_tax_rate=0.01, subsidy_scale=0.0)
     governor_name = governor.__class__.__name__
@@ -135,4 +135,4 @@ def run_batch_simulation(test_n_trials=100, steps=1000):
 
 if __name__ == "__main__":
     # Default: evaluate PigouvianGovernor with parameters matching the PPO baseline's strategy.
-    run_batch_simulation(test_n_trials=10, steps=1000)
+    run_batch_simulation(test_n_trials=100, steps=1000)

@@ -273,7 +273,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
         n_agents=n_agents,
         n_arms=30,
         decision_interval=10,
-        learning_rate=3e-4,
+        learning_rate=1e-4,
         clip_epsilon=0.2,
         ppo_epochs=4,
         batch_size=32,

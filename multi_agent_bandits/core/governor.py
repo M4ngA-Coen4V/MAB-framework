@@ -633,7 +633,7 @@ class PigouvianGovernor:
                     tax_amount = excess_agents * self.delta_drain
                     
                     
-                    #tax_amount = min(tax_amount, 0)
+                    tax_amount = min(tax_amount, 0)
                     
                     individual_taxes[idx] = tax_amount
                     total_tax_collected += tax_amount
@@ -2044,7 +2044,7 @@ class PPOGovernor:
         )
 
         self.strategies = [
-            PigouvianGovernor(n_agents=n_agents, delta_drain=0.30, survival_threshold=100.0),
+            PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=100.0),
             ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.40),
             WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0),
             FreeMarketGovernor(n_agents=n_agents),
