@@ -280,13 +280,13 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
             n_agents=n_agents,
             n_arms=30,
             decision_interval=10,
-            actor_lr=3e-4,
-            critic_lr=5e-4,
+            actor_lr=6e-4,
+            critic_lr=6e-4,
             clip_epsilon=0.2,
             ppo_epochs=3,
             batch_size=32,
             gamma=0.99,
-            entropy_coef=0.0001,
+            entropy_coef=0.01,
             lam=0.95,
             seed=master_seed,
         )
@@ -371,4 +371,4 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
 
 
 if __name__ == "__main__":
-    run_batch_simulation(train_n_trials=1000, test_n_trials=100, steps=1000)
+    run_batch_simulation(train_n_trials=400, test_n_trials=100, steps=1000)

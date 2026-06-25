@@ -123,7 +123,7 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
         set_seed(master_seed)
         # Rebuild a fresh governor instance with seed for each run.
         if governor_name == "PigouvianGovernor":
-            governor_seeded = PigouvianGovernor(n_agents=n_agents, delta_drain=0.30, survival_threshold=100.0)
+            governor_seeded = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=100.0)
         elif governor_name == "ProgressiveTaxGovernor":
             governor_seeded = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.40)
         elif governor_name == "SurvivalTargetedGovernor":
@@ -161,5 +161,6 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
 
 if __name__ == "__main__":
     #run_batch_simulation(test_n_trials=100, steps=1000)
-    run_diagnostic_trial(governor=FreeMarketGovernor(n_agents=30), steps=1000, n_agents=30, seed=42)
-    #run_diagnostic_trial(governor=PigouvianGovernor(n_agents=30, delta_drain=0.15, survival_threshold=100.0), steps=1000, n_agents=30, seed=42)
+    #run_diagnostic_trial(governor=FreeMarketGovernor(n_agents=30), steps=1000, n_agents=30, seed=42)
+    run_diagnostic_trial(governor=PigouvianGovernor(n_agents=30, delta_drain=0.60, survival_threshold=100.0), steps=1000, n_agents=30, seed=4000)
+    #run_diagnostic_trial(governor=WealthMultiplierGovernor(n_agents=30, base_tax_rate=0.032, max_tax_rate=0.16, subsidy_scale=2.0), steps=1000, n_agents=30, seed=2000)
