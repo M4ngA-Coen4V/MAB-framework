@@ -14,7 +14,7 @@ from multi_agent_bandits.core.governor import (
     WealthEqualizerGovernor,
     WealthMultiplierGovernor,
 )
-from multi_agent_bandits.experiments.seed_manager import set_seed
+from multi_agent_bandits.experiments.seed_manager import generate_seeds, set_seed
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 def run_diagnostic_trial(governor, steps, n_agents, seed=42):
@@ -45,15 +45,17 @@ def run_diagnostic_trial(governor, steps, n_agents, seed=42):
 
     print("🎉 Diagnostic trial complete! Check './test_strategy' for charts.")
 
-def run_phase(governor, n_trials, steps, n_agents, seed=42):
+def run_phase(governor, n_trials, steps, n_agents, base_seed=42):
     """Run evaluation-only trials for a fixed, non-learning governor."""
     batch_total_rewards = []
     batch_survival_counts = []
     batch_extinction_steps = []
+    trial_seeds = generate_seeds(base_seed, n_trials)
 
     original_stdout = sys.stdout
 
     for trial in range(n_trials):
+        trial_seed = trial_seeds[trial]
         if hasattr(governor, "reset"):
             governor.reset()
 
@@ -63,10 +65,10 @@ def run_phase(governor, n_trials, steps, n_agents, seed=42):
             initial_wealth=250.0,
             step_cost=3.0,
             governor=governor,
-            seed=seed,
+            seed=trial_seed,
         )
 
-        agents = [EpsilonGreedyAgent(env.n_arms, seed=seed + i) for i in range(n_agents)]
+        agents = [EpsilonGreedyAgent(env.n_arms, seed=trial_seed + i) for i in range(n_agents)]
         runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir=None)
 
         try:
@@ -92,8 +94,6 @@ def run_phase(governor, n_trials, steps, n_agents, seed=42):
         if survivor_count == 0:
             extinction_step = max(step for step in env.death_steps if step is not None)
             batch_extinction_steps.append(extinction_step)
-        
-        seed += 1  # Increment seed for next trial to ensure variability
 
     return {
         "avg_reward": float(np.mean(batch_total_rewards)),
@@ -119,8 +119,8 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
     governor_name = governor.__class__.__name__
 
     seed_results = {}
-    for seed in seeds:
-        set_seed(seed)
+    for master_seed in seeds:
+        set_seed(master_seed)
         # Rebuild a fresh governor instance with seed for each run.
         if governor_name == "PigouvianGovernor":
             governor_seeded = PigouvianGovernor(n_agents=n_agents, delta_drain=0.30, survival_threshold=100.0)
@@ -135,9 +135,9 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
         else:
             governor_seeded = FreeMarketGovernor(n_agents=n_agents)
 
-        print(f"🧪 Evaluating {governor_name} with seed {seed} over {test_n_trials} trials...")
-        metrics = run_phase(governor_seeded, test_n_trials, steps, n_agents, seed=seed)
-        seed_results[seed] = metrics
+        print(f"🧪 Evaluating {governor_name} with seed {master_seed} over {test_n_trials} trials...")
+        metrics = run_phase(governor_seeded, test_n_trials, steps, n_agents, base_seed=master_seed)
+        seed_results[master_seed] = metrics
 
     aggregate = {
         "avg_reward": float(np.mean([result["avg_reward"] for result in seed_results.values()])),

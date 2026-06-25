@@ -15,8 +15,8 @@ from multi_agent_bandits.experiments.plotting import (
     plot_strategy_probabilities,
     plot_total_reward_curves,
 )
+from multi_agent_bandits.experiments.seed_manager import generate_seeds, set_seed
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
-from multi_agent_bandits.experiments.seed_manager import set_seed
 
 
 def run_single_episode_trace(governor, steps, n_agents, seed=42):
@@ -60,11 +60,13 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
     batch_total_rewards = []
     batch_survival_counts = []
     batch_extinction_steps = []
+    trial_seeds = generate_seeds(seed, n_trials)
 
     original_stdout = sys.stdout
     phase_name = "Training" if is_training else "Testing"
 
     for trial in range(n_trials):
+        trial_seed = trial_seeds[trial]
         if hasattr(governor, "reset"):
             governor.reset()
 
@@ -74,9 +76,9 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
             initial_wealth=250.0,
             step_cost=3.0,
             governor=governor,
-            seed=seed,
+            seed=trial_seed,
         )
-        agents = [EpsilonGreedyAgent(env.n_arms, seed=seed + i) for i in range(n_agents)]
+        agents = [EpsilonGreedyAgent(env.n_arms, seed=trial_seed + i) for i in range(n_agents)]
         runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir=None)
 
         try:
@@ -118,8 +120,6 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
         if (trial + 1) % 10 == 0:
             print(f" -> [{phase_name}] Completed {trial + 1}/{n_trials} trials...")
 
-        seed += 1  # Increment seed for next trial to ensure variability
-
     return {
         "avg_reward": float(np.mean(batch_total_rewards)),
         "std_reward": float(np.std(batch_total_rewards)),
@@ -149,8 +149,8 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
     all_explained_var = []
     all_eval_rewards = []
 
-    for seed in seeds:
-        set_seed(seed)
+    for master_seed in seeds:
+        set_seed(master_seed)
         governor = PPOGovernor(
             n_agents=n_agents,
             n_arms=30,
@@ -163,23 +163,42 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
             gamma=0.99,
             entropy_coef=0.0001,
             lam=0.95,
-            seed=seed,
+            seed=master_seed,
         )
 
-        print(f"🚀 PPO training with seed {seed}...")
-        train_metrics = run_phase(governor, train_n_trials, steps, n_agents, is_training=True, seed=seed)
+        print(f"🚀 PPO training with seed {master_seed}...")
+        train_metrics = run_phase(
+            governor,
+            train_n_trials,
+            steps,
+            n_agents,
+            is_training=True,
+            seed=master_seed,
+        )
         training_strategy_probs = list(governor.strategy_prob_history)
         governor.strategy_prob_history = []
 
         governor.is_evaluating = True
-        single_episode_test_strategy_probs = run_single_episode_trace(governor, steps, n_agents, seed=seed)
+        single_episode_test_strategy_probs = run_single_episode_trace(
+            governor,
+            steps,
+            n_agents,
+            seed=master_seed + 10000,
+        )
         governor.strategy_prob_history = []
-        test_metrics = run_phase(governor, test_n_trials, steps, n_agents, is_training=False, seed=seed)
+        test_metrics = run_phase(
+            governor,
+            test_n_trials,
+            steps,
+            n_agents,
+            is_training=False,
+            seed=master_seed + 10000,
+        )
         governor.is_evaluating = False
         test_strategy_probs = single_episode_test_strategy_probs
         combined_strategy_probs = training_strategy_probs + test_strategy_probs
 
-        all_results[seed] = {
+        all_results[master_seed] = {
             "train_metrics": train_metrics,
             "test_metrics": test_metrics,
             "training_rewards": train_metrics["reward_history"],

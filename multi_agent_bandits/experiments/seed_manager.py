@@ -11,6 +11,21 @@ import numpy as np
 import torch
 
 
+def generate_seeds(base_seed: int, n_seeds: int) -> list:
+    """
+    Generate a deterministic list of pseudo-random seeds from a base seed.
+
+    Args:
+        base_seed (int): The master seed.
+        n_seeds (int): Number of unique seeds to generate.
+
+    Returns:
+        list: List of n_seeds unique random seeds.
+    """
+    rng = random.Random(base_seed)
+    return [rng.randint(0, 2**31 - 1) for _ in range(n_seeds)]
+
+
 def set_seed(seed: int, deterministic_cudnn: bool = True):
     """
     Set all random seeds for reproducibility.
