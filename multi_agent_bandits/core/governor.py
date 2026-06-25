@@ -2013,7 +2013,8 @@ class PPOGovernor:
         n_agents=30,
         n_arms=30,
         decision_interval=10,
-        learning_rate=1e-3,
+        actor_lr=1e-3,
+        critic_lr=1e-3,
         clip_epsilon=0.2,
         ppo_epochs=4,
         batch_size=32,
@@ -2055,7 +2056,12 @@ class PPOGovernor:
         # 30-arm congestion vector + 2 summary stats = 36 dims, which is close to the
         # 40-dim description and sufficient for the macro-level policy.
         self.network = PPOPolicyNetwork(self.n_arms + 6, self.n_actions)
-        self.optimizer = optim.Adam(self.network.parameters(), lr=learning_rate)
+        self.optimizer = optim.Adam([
+            {"params": self.network.actor_head.parameters(), "lr": actor_lr},
+            {"params": self.network.critic_head.parameters(), "lr": critic_lr},
+            {"params": self.network.backbone.parameters(), "lr": actor_lr},  # or critic_lr
+        ])
+
 
         # Runtime bookkeeping
         self.current_action_idx = None

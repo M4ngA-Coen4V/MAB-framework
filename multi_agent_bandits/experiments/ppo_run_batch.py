@@ -273,7 +273,8 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
         n_agents=n_agents,
         n_arms=30,
         decision_interval=10,
-        learning_rate=1e-4,
+        actor_lr=1e-4,
+        critic_lr=1e-4,
         clip_epsilon=0.2,
         ppo_epochs=4,
         batch_size=32,
@@ -362,4 +363,4 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
 
 
 if __name__ == "__main__":
-    run_batch_simulation(train_n_trials=400, test_n_trials=100, steps=1000)
+    run_batch_simulation(train_n_trials=1000, test_n_trials=100, steps=1000)
