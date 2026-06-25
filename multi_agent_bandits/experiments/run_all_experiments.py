@@ -70,8 +70,8 @@ def main():
     plot_strategy_probabilities(
         ppo_results["test_strategy_probabilities"],
         save_path=str(PLOTS_DIR / "strategy_probabilities_testing.png"),
-        title="Strategy Probabilities (Testing Phase)",
-        xlabel="Testing Decision Interval",
+        title="Strategy Probabilities (1 Episode / 1000 Steps)",
+        xlabel="Decision Interval",
     )
 
     comparison_data = {"PPO": ppo_results["eval_rewards"]}

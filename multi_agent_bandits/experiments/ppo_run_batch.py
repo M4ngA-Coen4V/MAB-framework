@@ -19,6 +19,42 @@ from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.experiments.seed_manager import set_seed
 
 
+def run_single_episode_trace(governor, steps, n_agents, seed=42):
+    """Run one evaluation episode and return the strategy probabilities from that episode."""
+    if hasattr(governor, "reset"):
+        governor.reset()
+
+    env = DepletingCommonsEnvironment(
+        n_agents=n_agents,
+        death_threshold=0.0,
+        initial_wealth=250.0,
+        step_cost=3.0,
+        governor=governor,
+        seed=seed,
+    )
+    agents = [EpsilonGreedyAgent(env.n_arms, seed=seed + i) for i in range(n_agents)]
+    runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir=None)
+
+    original_stdout = sys.stdout
+    try:
+        sys.stdout = open(os.devnull, "w")
+        runner.run(
+            plot_rewards=False,
+            plot_frequencies=False,
+            plot_beliefs=False,
+            plot_environment_health=False,
+            plot_resource_efficiency=False,
+        )
+    finally:
+        try:
+            sys.stdout.close()
+        except Exception:
+            pass
+        sys.stdout = original_stdout
+
+    return list(getattr(governor, "strategy_prob_history", []))
+
+
 def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
     """Run a block of independent trials and optionally train the PPO governor."""
     batch_total_rewards = []
@@ -134,9 +170,11 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
         governor.strategy_prob_history = []
 
         governor.is_evaluating = True
+        single_episode_test_strategy_probs = run_single_episode_trace(governor, steps, n_agents, seed=seed)
+        governor.strategy_prob_history = []
         test_metrics = run_phase(governor, test_n_trials, steps, n_agents, is_training=False, seed=seed)
         governor.is_evaluating = False
-        test_strategy_probs = list(governor.strategy_prob_history)
+        test_strategy_probs = single_episode_test_strategy_probs
         combined_strategy_probs = training_strategy_probs + test_strategy_probs
 
         all_results[seed] = {
