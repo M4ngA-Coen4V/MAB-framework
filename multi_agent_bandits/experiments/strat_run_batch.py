@@ -17,6 +17,33 @@ from multi_agent_bandits.core.governor import (
 from multi_agent_bandits.experiments.seed_manager import set_seed
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
+def run_diagnostic_trial(governor, steps, n_agents, seed=42):
+    """Run a single trial with visual diagnostics enabled."""
+    print("\n📸 Running a single diagnostic trial with visual outputs...")
+    if hasattr(governor, "reset"):
+        governor.reset()
+
+    env = DepletingCommonsEnvironment(
+        n_agents=n_agents,
+        death_threshold=0.0,
+        initial_wealth=250.0,
+        step_cost=3.0,
+        governor=governor,
+        seed=seed
+    )
+    agents = [EpsilonGreedyAgent(env.n_arms, seed=seed + i) for i in range(n_agents)]
+    runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir="test_strategy")
+
+    # Run with standard plotting enabled so ExperimentRunner writes plots
+    runner.run(
+        plot_rewards=True,
+        plot_frequencies=True,
+        plot_beliefs=True,
+        plot_environment_health=True,
+        plot_resource_efficiency=True,
+    )
+
+    print("🎉 Diagnostic trial complete! Check './test_strategy' for charts.")
 
 def run_phase(governor, n_trials, steps, n_agents, seed=42):
     """Run evaluation-only trials for a fixed, non-learning governor."""
@@ -86,6 +113,7 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
     if governor is None:
         #governor = FreeMarketGovernor(n_agents=n_agents)
         governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=100.0)
+        #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.40)
     governor_name = governor.__class__.__name__
 
     seed_results = {}
@@ -93,7 +121,7 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
         set_seed(seed)
         # Rebuild a fresh governor instance with seed for each run.
         if governor_name == "PigouvianGovernor":
-            governor_seeded = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=100.0)
+            governor_seeded = PigouvianGovernor(n_agents=n_agents, delta_drain=0.30, survival_threshold=100.0)
         elif governor_name == "ProgressiveTaxGovernor":
             governor_seeded = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.40)
         elif governor_name == "SurvivalTargetedGovernor":
@@ -130,4 +158,6 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
 
 
 if __name__ == "__main__":
-    run_batch_simulation(test_n_trials=100, steps=1000)
+    #run_batch_simulation(test_n_trials=100, steps=1000)
+    #run_diagnostic_trial(governor=FreeMarketGovernor(n_agents=30), steps=1000, n_agents=30, seed=42)
+    run_diagnostic_trial(governor=PigouvianGovernor(n_agents=30, delta_drain=0.15, survival_threshold=100.0), steps=1000, n_agents=30, seed=42)

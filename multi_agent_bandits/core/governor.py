@@ -633,7 +633,7 @@ class PigouvianGovernor:
                     tax_amount = excess_agents * self.delta_drain
                     
                     
-                    tax_amount = min(tax_amount, 0)
+                    #tax_amount = max(tax_amount, 0)
                     
                     individual_taxes[idx] = tax_amount
                     total_tax_collected += tax_amount

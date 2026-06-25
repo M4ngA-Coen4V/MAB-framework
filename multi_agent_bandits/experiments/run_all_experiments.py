@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from multi_agent_bandits.core.governor import FreeMarketGovernor
+from multi_agent_bandits.core.governor import FreeMarketGovernor, PigouvianGovernor
 from multi_agent_bandits.experiments.ppo_run_batch import run_batch_simulation as run_ppo_batch
 from multi_agent_bandits.experiments.plotting import (
     plot_critic_performance,
@@ -27,9 +27,10 @@ def main():
     RESULTS_DIR.mkdir(exist_ok=True)
     PLOTS_DIR.mkdir(exist_ok=True)
 
-    ppo_results = run_ppo_batch(train_n_trials=400, test_n_trials=100, steps=1000, seeds=SEEDS)
-    baseline_results = run_baseline_batch(test_n_trials=100, steps=1000, seeds=SEEDS, governor=FreeMarketGovernor(n_agents=30))
+    governor = PigouvianGovernor(n_agents=30, delta_drain=0.15, survival_threshold=100.0)
 
+    ppo_results = run_ppo_batch(train_n_trials=400, test_n_trials=100, steps=1000, seeds=SEEDS)
+    baseline_results = run_baseline_batch(test_n_trials=100, steps=1000, seeds=SEEDS, governor=governor)
     results_payload = {
         "seeds": SEEDS,
         "ppo": ppo_results,
