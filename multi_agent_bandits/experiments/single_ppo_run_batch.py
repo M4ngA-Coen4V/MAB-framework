@@ -5,8 +5,9 @@ import torch
 import matplotlib.pyplot as plt
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
 from multi_agent_bandits.core.governor import PPOGovernor, PigouvianGovernor
-from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
+from multi_agent_bandits.experiments.seed_manager import generate_seeds, set_seed
+from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 
 def plot_input_layer_dynamics(governor, save_path="test_PPO/input_layer_trends.png"):
@@ -198,11 +199,13 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
     batch_total_rewards = []
     batch_survival_counts = []
     batch_extinction_steps = []
+    trial_seeds = generate_seeds(seed, n_trials)
 
     original_stdout = sys.stdout
     phase_name = "Training" if is_training else "Testing"
 
     for trial in range(n_trials):
+        trial_seed = trial_seeds[trial]
         if hasattr(governor, "reset"):
             governor.reset()
 
@@ -212,9 +215,9 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
             initial_wealth=250.0,
             step_cost=3.0,
             governor=governor,
-            seed=seed
+            seed=trial_seed
         )
-        agents = [EpsilonGreedyAgent(env.n_arms) for _ in range(n_agents)]
+        agents = [EpsilonGreedyAgent(env.n_arms, seed=trial_seed + i) for i in range(n_agents)]
         runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir=None)
 
         try:
@@ -254,7 +257,6 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
 
         if (trial + 1) % 10 == 0:
             print(f" -> [{phase_name}] Completed {trial + 1}/{n_trials} trials...")
-        seed += 1  # Increment seed for next trial to ensure variability
 
     return {
         "avg_reward": np.mean(batch_total_rewards),
@@ -270,7 +272,9 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
 def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     """Build and execute the PPO governor training + evaluation workflow."""
     n_agents = 30
-    seed = 200000
+    master_seed = 200000
+
+    set_seed(master_seed)
 
     governor = PPOGovernor(
             n_agents=n_agents,
@@ -284,7 +288,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
             gamma=0.99,
             entropy_coef=0.0001,
             lam=0.95,
-            seed=seed,
+            seed=master_seed,
         )
 
 
@@ -292,7 +296,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     is_learning_model = hasattr(governor, "update_ppo")
 
     print(f"🚀 Starting {governor_name} training run...")
-    train_metrics = run_phase(governor, train_n_trials, steps, n_agents, is_training=True, seed=seed)
+    train_metrics = run_phase(governor, train_n_trials, steps, n_agents, is_training=True, seed=master_seed)
 
     # Plot internal PPO training diagnostics after training phase completes.
     if is_learning_model and hasattr(governor, "ppo_diagnostics_history"):
@@ -302,7 +306,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     print(f"\n🧪 Evaluating {governor_name} performance...")
     # Evaluation uses argmax selection instead of sampling.
     governor.is_evaluating = True
-    test_metrics = run_phase(governor, test_n_trials, steps, n_agents, is_training=False, seed=seed)
+    test_metrics = run_phase(governor, test_n_trials, steps, n_agents, is_training=False, seed=master_seed + 10000)
     governor.is_evaluating = False
 
     print("\n" + "=" * 60)
@@ -345,9 +349,9 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
         initial_wealth=250.0,
         step_cost=3.0,
         governor=governor,
-        seed=seed
+        seed=master_seed + 10000
     )
-    visual_agents = [EpsilonGreedyAgent(visual_env.n_arms) for _ in range(n_agents)]
+    visual_agents = [EpsilonGreedyAgent(visual_env.n_arms, seed=master_seed + 10000 + i) for i in range(n_agents)]
     visual_runner = ExperimentRunner(visual_env, visual_agents, timestep_limit=steps, save_dir="test_PPO")
 
     # Single visualization run to save plots and confirm behavior.
