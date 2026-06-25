@@ -18,9 +18,10 @@ from multi_agent_bandits.experiments.plotting import (
 from multi_agent_bandits.experiments.ppo_run_batch import run_batch_simulation as run_ppo_batch
 from multi_agent_bandits.experiments.strat_run_batch import run_batch_simulation as run_baseline_batch
 
-SEEDS = [123456, 234567, 345678, 456789, 567890]
+SEEDS = [100000, 200000, 300000, 400000, 500000]
 #SEEDS = [123456]
-RESULTS_DIR = Path("results")
+#RESULTS_DIR = Path("results")
+RESULTS_DIR = Path("results2")
 PLOTS_DIR = RESULTS_DIR / "plots"
 
 
