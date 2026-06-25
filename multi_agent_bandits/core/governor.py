@@ -2034,10 +2034,13 @@ class PPOGovernor:
         self.entropy_coef = entropy_coef
         self.lam = lam
 
+        self.seed = seed
         if seed is not None:
             random.seed(seed)
             np.random.seed(seed)
             torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
 
         # Discrete action space: 4 macro-governance strategies.
         from multi_agent_bandits.core.governor import (
@@ -2087,6 +2090,11 @@ class PPOGovernor:
         self.output_layer_history = []
         self.reward_layer_history = []
         self.ppo_diagnostics_history = []
+        self.critic_loss_history = []
+        self.explained_variance_history = []
+        self.entropy_history = []
+        self.kl_history = []
+        self.strategy_prob_history = []
 
     def reset(self):
         """Reset internal state before a fresh episode."""
@@ -2174,7 +2182,9 @@ class PPOGovernor:
 
             # Save diagnostics for later plotting.
             self.input_layer_history.append(state.tolist())
-            self.output_layer_history.append(probs.detach().cpu().numpy().tolist())
+            probs_np = probs.detach().cpu().numpy().tolist()
+            self.output_layer_history.append(probs_np)
+            self.strategy_prob_history.append(probs_np)
 
         adjustments = self.current_strategy.choose_action(
             observation, choices, wealths, raw_rewards, alive_mask
@@ -2329,6 +2339,10 @@ class PPOGovernor:
             )
 
         # Store aggregated diagnostics from this entire PPO update pass.
+        self.critic_loss_history.append(float(np.mean(epoch_critic_losses)))
+        self.explained_variance_history.append(float(explained_variance))
+        self.entropy_history.append(float(np.mean(epoch_entropies)))
+        self.kl_history.append(float(np.mean(epoch_kl_divergences)))
         self.ppo_diagnostics_history.append({
             "value_loss": np.mean(epoch_critic_losses),
             "policy_loss": np.mean(epoch_actor_losses),

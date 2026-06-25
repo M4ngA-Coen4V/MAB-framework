@@ -1,20 +1,25 @@
 import os
 import sys
+from typing import Dict, List
+
 import numpy as np
+
 from multi_agent_bandits.core.congested_commons_env import DepletingCommonsEnvironment
-from multi_agent_bandits.core.governor import PigouvianGovernor, ProgressiveTaxGovernor, SurvivalTargetedGovernor, FreeMarketGovernor, WealthMultiplierGovernor, WealthEqualizerGovernor
-from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 from multi_agent_bandits.core.experiment_runner import ExperimentRunner
+from multi_agent_bandits.core.governor import (
+    FreeMarketGovernor,
+    PigouvianGovernor,
+    ProgressiveTaxGovernor,
+    SurvivalTargetedGovernor,
+    WealthEqualizerGovernor,
+    WealthMultiplierGovernor,
+)
+from multi_agent_bandits.experiments.seed_manager import set_seed
+from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 
-def run_phase(governor, n_trials, steps, n_agents):
-    """Run evaluation-only trials for a fixed, non-learning governor.
-
-    This function runs `n_trials` independent episodes using `governor` (which
-    must implement the same interface as the governors in this repo). It does
-    NOT perform any training or weight updates; it only collects episode
-    statistics and lets the ExperimentRunner save its own visualization plots.
-    """
+def run_phase(governor, n_trials, steps, n_agents, seed=42):
+    """Run evaluation-only trials for a fixed, non-learning governor."""
     batch_total_rewards = []
     batch_survival_counts = []
     batch_extinction_steps = []
@@ -30,15 +35,15 @@ def run_phase(governor, n_trials, steps, n_agents):
             death_threshold=0.0,
             initial_wealth=250.0,
             step_cost=3.0,
-            governor=governor
+            governor=governor,
+            seed=seed,
         )
 
-        agents = [EpsilonGreedyAgent(env.n_arms) for _ in range(n_agents)]
+        agents = [EpsilonGreedyAgent(env.n_arms, seed=seed + i) for i in range(n_agents)]
         runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir=None)
 
         try:
-            # Silence verbose environment output during batch evaluation
-            sys.stdout = open(os.devnull, 'w')
+            sys.stdout = open(os.devnull, "w")
             runner.run(
                 plot_rewards=False,
                 plot_frequencies=False,
@@ -61,78 +66,68 @@ def run_phase(governor, n_trials, steps, n_agents):
             extinction_step = max(step for step in env.death_steps if step is not None)
             batch_extinction_steps.append(extinction_step)
 
-        if (trial + 1) % 10 == 0:
-            print(f" -> [Evaluation] Completed {trial + 1}/{n_trials} trials...")
-
     return {
-        "avg_reward": np.mean(batch_total_rewards),
-        "std_reward": np.std(batch_total_rewards),
-        "max_reward": np.max(batch_total_rewards),
-        "min_reward": np.min(batch_total_rewards),
-        "avg_survivors": np.mean(batch_survival_counts),
-        "extinction_rate": (len(batch_extinction_steps) / n_trials) * 100,
+        "avg_reward": float(np.mean(batch_total_rewards)),
+        "std_reward": float(np.std(batch_total_rewards)),
+        "max_reward": float(np.max(batch_total_rewards)),
+        "min_reward": float(np.min(batch_total_rewards)),
+        "avg_survivors": float(np.mean(batch_survival_counts)),
+        "extinction_rate": float((len(batch_extinction_steps) / n_trials) * 100),
         "extinction_steps": batch_extinction_steps,
     }
 
 
-def run_batch_simulation(test_n_trials=100, steps=1000):
-    """Run a batch evaluation for a single (non-learning) governor class.
-    This runner does NOT perform any training.
-    """
-    n_agents=30
+def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=None):
+    """Run a multi-seed evaluation for one or more non-learning governors."""
+    if seeds is None:
+        seeds = [43, 123, 456, 789, 101112]
 
-    #governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=100.0)
-    #governor = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.20)
-    governor = FreeMarketGovernor(n_agents=n_agents)
-    #governor = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=1.0)
-    #governor = WealthEqualizerGovernor(n_agents=n_agents, base_tax_rate=0.002, max_tax_rate=0.01, subsidy_scale=0.0)
+    n_agents = 30
+    if governor is None:
+        #governor = FreeMarketGovernor(n_agents=n_agents)
+        governor = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=100.0)
     governor_name = governor.__class__.__name__
 
-    print(f"🧪 Evaluating static strategy: {governor_name} over {test_n_trials} trials...")
-    test_metrics = run_phase(governor, test_n_trials, steps, n_agents)
+    seed_results = {}
+    for seed in seeds:
+        set_seed(seed)
+        # Rebuild a fresh governor instance with seed for each run.
+        if governor_name == "PigouvianGovernor":
+            governor_seeded = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=100.0)
+        elif governor_name == "ProgressiveTaxGovernor":
+            governor_seeded = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.40)
+        elif governor_name == "SurvivalTargetedGovernor":
+            governor_seeded = SurvivalTargetedGovernor(n_agents=n_agents, survival_cost=3.0)
+        elif governor_name == "WealthMultiplierGovernor":
+            governor_seeded = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)
+        elif governor_name == "WealthEqualizerGovernor":
+            governor_seeded = WealthEqualizerGovernor(n_agents=n_agents, base_tax_rate=0.002, max_tax_rate=0.01, subsidy_scale=0.0)
+        else:
+            governor_seeded = FreeMarketGovernor(n_agents=n_agents)
+
+        print(f"🧪 Evaluating {governor_name} with seed {seed} over {test_n_trials} trials...")
+        metrics = run_phase(governor_seeded, test_n_trials, steps, n_agents, seed=seed)
+        seed_results[seed] = metrics
+
+    aggregate = {
+        "avg_reward": float(np.mean([result["avg_reward"] for result in seed_results.values()])),
+        "std_reward": float(np.std([result["avg_reward"] for result in seed_results.values()], ddof=0)),
+        "max_reward": float(np.max([result["max_reward"] for result in seed_results.values()])),
+        "min_reward": float(np.min([result["min_reward"] for result in seed_results.values()])),
+    }
 
     print("\n" + "=" * 60)
     print(f"📊 SYSTEM SUMMARY REPORT: {governor_name}")
     print("=" * 60)
-    print(f"| Metric                      | Testing Phase       |")
-    print(f"|-----------------------------|---------------------|")
-    print(f"| Avg Combined System Reward  | {test_metrics['avg_reward']:.2f} ± {test_metrics['std_reward']:.2f}  |")
-    print(f"| Max Combined System Reward  | {test_metrics['max_reward']:.2f}            |")
-    print(f"| Min Combined System Reward  | {test_metrics['min_reward']:.2f}            |")
-    print(f"| Avg Active Survivors / {n_agents}   | {test_metrics['avg_survivors']:.1f}                  |")
-    print(f"| Complete Extinction Rate    | {test_metrics['extinction_rate']:.1f}%                |")
-    if test_metrics['extinction_steps']:
-        e_ext = f"{np.mean(test_metrics['extinction_steps']):.1f}"
-        print(f"| Avg Extinction Timestep     | {e_ext:<19} |")
+    print(f"| Metric                      | Mean ± Std         |")
+    print(f"|-----------------------------|--------------------|")
+    print(f"| Avg Combined System Reward  | {aggregate['avg_reward']:.2f} ± {aggregate['std_reward']:.2f} |")
+    print(f"| Max Combined System Reward  | {aggregate['max_reward']:.2f} |")
+    print(f"| Min Combined System Reward  | {aggregate['min_reward']:.2f} |")
     print("=" * 60)
 
-    # Visual diagnostic single run: let ExperimentRunner save its own plots
-    print("\n📸 Producing single visual trial outputs in './test_strategy'...")
-    if hasattr(governor, "reset"):
-        governor.reset()
-
-    visual_env = DepletingCommonsEnvironment(
-        n_agents=n_agents,
-        death_threshold=0.0,
-        initial_wealth=250.0,
-        step_cost=3.0,
-        governor=governor,
-    )
-    visual_agents = [EpsilonGreedyAgent(visual_env.n_arms) for _ in range(n_agents)]
-    visual_runner = ExperimentRunner(visual_env, visual_agents, timestep_limit=steps, save_dir="test_strategy")
-
-    # Run with standard plotting enabled so ExperimentRunner writes plots
-    visual_runner.run(
-        plot_rewards=True,
-        plot_frequencies=True,
-        plot_beliefs=True,
-        plot_environment_health=True,
-        plot_resource_efficiency=True,
-    )
-
-    print("🎉 Visual diagnostic complete! Check './test_strategy' for charts.")
+    return {"seed_results": seed_results, "aggregate": aggregate}
 
 
 if __name__ == "__main__":
-    # Default: evaluate PigouvianGovernor with parameters matching the PPO baseline's strategy.
     run_batch_simulation(test_n_trials=100, steps=1000)

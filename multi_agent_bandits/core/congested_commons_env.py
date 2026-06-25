@@ -1,5 +1,7 @@
 from unittest import result
 
+import numpy as np
+
 from multi_agent_bandits.core import agent
 from multi_agent_bandits.core.environment import Environment
 from multi_agent_bandits.core.arm import Arm
@@ -18,7 +20,7 @@ class CongestedCommonsEnvironment(Environment):
 	- Dead agents do not choose arms, do not cause collisions, and receive 0 reward.
 	"""
 
-	def __init__(self, n_agents=3, arms=None, death_threshold=0.0, initial_wealth=0.0, step_cost=0.0, governor=None):
+	def __init__(self, n_agents=3, arms=None, death_threshold=0.0, initial_wealth=0.0, step_cost=0.0, governor=None, seed=None):
 		# Build default arms if none provided
 		if arms is None:
 			arms = [
@@ -43,6 +45,14 @@ class CongestedCommonsEnvironment(Environment):
 		self.governor = governor
 		self.governor_reward_history = []
 		self.initial_wealth = initial_wealth
+		self.seed = seed
+		self.rng = np.random.default_rng(seed) if seed is not None else None
+
+	def sample_reward(self, arm_idx):
+		if self.rng is not None:
+			arm = self.arms[arm_idx]
+			return self.rng.normal(arm.mean, arm.sd)
+		return super().sample_reward(arm_idx)
 
 	def _build_governor_observation(self, choices):
 		"""Build a fixed-size observation for the governor.
@@ -207,7 +217,7 @@ class DepletingCommonsEnvironment(Environment):
     - Tracks per-agent wealth and marks agents as dead when wealth < death_threshold.
     """
 
-    def __init__(self, n_agents=3, arms=None, death_threshold=0.0, initial_wealth=0.0, step_cost=0.0, governor=None, delta_drain=0.15, gamma_regen=0.05):
+    def __init__(self, n_agents=3, arms=None, death_threshold=0.0, initial_wealth=0.0, step_cost=0.0, governor=None, delta_drain=0.15, gamma_regen=0.05, seed=None):
         # Build default arms if none provided
         if arms is None:
             arms = [
@@ -268,6 +278,14 @@ class DepletingCommonsEnvironment(Environment):
         self.governor = governor
         self.governor_reward_history = []
         self.initial_wealth = initial_wealth
+        self.seed = seed
+        self.rng = np.random.default_rng(seed) if seed is not None else None
+
+    def sample_reward(self, arm_idx):
+        if self.rng is not None:
+            arm = self.arms[arm_idx]
+            return self.rng.normal(arm.mean, arm.sd)
+        return super().sample_reward(arm_idx)
 
     def _build_governor_observation(self, choices):
         choice_obs = [choice if choice is not None else -1 for choice in choices]
