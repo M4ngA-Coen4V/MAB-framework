@@ -92,6 +92,8 @@ def run_phase(governor, n_trials, steps, n_agents, seed=42):
         if survivor_count == 0:
             extinction_step = max(step for step in env.death_steps if step is not None)
             batch_extinction_steps.append(extinction_step)
+        
+        seed += 1  # Increment seed for next trial to ensure variability
 
     return {
         "avg_reward": float(np.mean(batch_total_rewards)),
@@ -159,5 +161,5 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
 
 if __name__ == "__main__":
     #run_batch_simulation(test_n_trials=100, steps=1000)
-    #run_diagnostic_trial(governor=FreeMarketGovernor(n_agents=30), steps=1000, n_agents=30, seed=42)
-    run_diagnostic_trial(governor=PigouvianGovernor(n_agents=30, delta_drain=0.15, survival_threshold=100.0), steps=1000, n_agents=30, seed=42)
+    run_diagnostic_trial(governor=FreeMarketGovernor(n_agents=30), steps=1000, n_agents=30, seed=42)
+    #run_diagnostic_trial(governor=PigouvianGovernor(n_agents=30, delta_drain=0.15, survival_threshold=100.0), steps=1000, n_agents=30, seed=42)

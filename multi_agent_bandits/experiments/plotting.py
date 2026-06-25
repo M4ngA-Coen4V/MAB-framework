@@ -102,6 +102,9 @@ def plot_strategy_probabilities(all_seed_probs, save_path=None):
     ax.set_ylabel("Probability")
     ax.set_ylim(-0.05, 1.05)
     ax.grid(True, linestyle="--", alpha=0.4)
+
+    ax.legend(loc="upper right", fontsize=10, frameon=True, facecolor="white", framealpha=0.9)
+
     fig.tight_layout()
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
