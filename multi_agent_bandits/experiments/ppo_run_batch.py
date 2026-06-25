@@ -118,6 +118,8 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
         if (trial + 1) % 10 == 0:
             print(f" -> [{phase_name}] Completed {trial + 1}/{n_trials} trials...")
 
+        seed += 1  # Increment seed for next trial to ensure variability
+
     return {
         "avg_reward": float(np.mean(batch_total_rewards)),
         "std_reward": float(np.std(batch_total_rewards)),
