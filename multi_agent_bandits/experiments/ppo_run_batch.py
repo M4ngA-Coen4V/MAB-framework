@@ -103,6 +103,8 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
     all_results = {}
     all_training_rewards = []
     all_strategy_probs = []
+    all_training_strategy_probs = []
+    all_test_strategy_probs = []
     all_critic_loss = []
     all_entropy = []
     all_kl = []
@@ -128,15 +130,22 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
 
         print(f"🚀 PPO training with seed {seed}...")
         train_metrics = run_phase(governor, train_n_trials, steps, n_agents, is_training=True, seed=seed)
+        training_strategy_probs = list(governor.strategy_prob_history)
+        governor.strategy_prob_history = []
+
         governor.is_evaluating = True
         test_metrics = run_phase(governor, test_n_trials, steps, n_agents, is_training=False, seed=seed)
         governor.is_evaluating = False
+        test_strategy_probs = list(governor.strategy_prob_history)
+        combined_strategy_probs = training_strategy_probs + test_strategy_probs
 
         all_results[seed] = {
             "train_metrics": train_metrics,
             "test_metrics": test_metrics,
             "training_rewards": train_metrics["reward_history"],
-            "strategy_probabilities": governor.strategy_prob_history,
+            "strategy_probabilities": combined_strategy_probs,
+            "training_strategy_probabilities": training_strategy_probs,
+            "test_strategy_probabilities": test_strategy_probs,
             "critic_loss_history": governor.critic_loss_history,
             "entropy_history": governor.entropy_history,
             "kl_history": governor.kl_history,
@@ -144,7 +153,9 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
             "final_eval_reward": test_metrics["avg_reward"],
         }
         all_training_rewards.append(train_metrics["reward_history"])
-        all_strategy_probs.append(governor.strategy_prob_history)
+        all_strategy_probs.append(combined_strategy_probs)
+        all_training_strategy_probs.append(training_strategy_probs)
+        all_test_strategy_probs.append(test_strategy_probs)
         all_critic_loss.append(governor.critic_loss_history)
         all_entropy.append(governor.entropy_history)
         all_kl.append(governor.kl_history)
@@ -160,6 +171,8 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
         },
         "training_rewards": all_training_rewards,
         "strategy_probabilities": all_strategy_probs,
+        "training_strategy_probabilities": all_training_strategy_probs,
+        "test_strategy_probabilities": all_test_strategy_probs,
         "critic_loss_history": all_critic_loss,
         "entropy_history": all_entropy,
         "kl_history": all_kl,

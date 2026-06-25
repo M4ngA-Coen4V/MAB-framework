@@ -35,7 +35,7 @@ def main():
         ("Wealth Multiplier", WealthMultiplierGovernor(n_agents=30, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)),
     ]
 
-    ppo_results = run_ppo_batch(train_n_trials=1000, test_n_trials=100, steps=1000, seeds=SEEDS)
+    ppo_results = run_ppo_batch(train_n_trials=100, test_n_trials=100, steps=1000, seeds=SEEDS)
 
     baseline_results = {}
     for name, governor in baseline_definitions:
@@ -62,7 +62,17 @@ def main():
     )
     plot_policy_entropy(ppo_results["entropy_history"], save_path=str(PLOTS_DIR / "policy_entropy.png"))
     plot_kl_divergence(ppo_results["kl_history"], save_path=str(PLOTS_DIR / "kl_divergence.png"))
-    plot_strategy_probabilities(ppo_results["strategy_probabilities"], save_path=str(PLOTS_DIR / "strategy_probabilities.png"))
+    plot_strategy_probabilities(
+        ppo_results["strategy_probabilities"],
+        save_path=str(PLOTS_DIR / "strategy_probabilities.png"),
+        title="Strategy Probabilities (Training + Testing)",
+    )
+    plot_strategy_probabilities(
+        ppo_results["test_strategy_probabilities"],
+        save_path=str(PLOTS_DIR / "strategy_probabilities_testing.png"),
+        title="Strategy Probabilities (Testing Phase)",
+        xlabel="Testing Decision Interval",
+    )
 
     comparison_data = {"PPO": ppo_results["eval_rewards"]}
     for name, _ in baseline_definitions:

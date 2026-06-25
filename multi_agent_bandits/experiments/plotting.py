@@ -81,24 +81,33 @@ def plot_kl_divergence(kl_data, target_ceiling=0.02, save_path=None):
     return fig
 
 
-def plot_strategy_probabilities(all_seed_probs, save_path=None):
+def plot_strategy_probabilities(all_seed_probs, save_path=None, title="Strategy Probabilities", xlabel="Decision Interval"):
     labels = ["Pigouvian", "Progressive", "Wealth Multiplier", "Free Market"]
     colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd"]
     means = []
     stds = []
     for idx in range(len(labels)):
-        values = [np.asarray(seed_probs)[:, idx] for seed_probs in all_seed_probs]
+        values = []
+        for seed_probs in all_seed_probs:
+            if not seed_probs:
+                values.append(np.array([]))
+                continue
+            arr = np.asarray(seed_probs, dtype=float)
+            if arr.ndim == 1:
+                arr = arr.reshape(1, -1)
+            values.append(arr[:, idx])
         mean, std = _compute_mean_std(values)
         means.append(mean)
         stds.append(std)
 
-    x = np.arange(1, len(means[0]) + 1)
+    x = np.arange(1, len(means[0]) + 1) if means else np.array([])
     fig, ax = plt.subplots(figsize=(10, 4))
     for idx, label in enumerate(labels):
         ax.plot(x, means[idx], color=colors[idx], linewidth=2, label=label)
         ax.fill_between(x, means[idx] - stds[idx], means[idx] + stds[idx], color=colors[idx], alpha=0.15)
 
-    ax.set_xlabel("Decision Interval")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
     ax.set_ylabel("Probability")
     ax.set_ylim(-0.05, 1.05)
     ax.grid(True, linestyle="--", alpha=0.4)
