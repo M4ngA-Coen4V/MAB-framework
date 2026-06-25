@@ -21,7 +21,7 @@ from multi_agent_bandits.experiments.strat_run_batch import run_batch_simulation
 SEEDS = [100000, 200000, 300000, 400000, 500000]
 #SEEDS = [123456]
 #RESULTS_DIR = Path("results")
-RESULTS_DIR = Path("results3")
+RESULTS_DIR = Path("results")
 PLOTS_DIR = RESULTS_DIR / "plots"
 
 
@@ -30,19 +30,19 @@ def main():
     PLOTS_DIR.mkdir(exist_ok=True)
 
     baseline_definitions = [
-        #("Free Market", FreeMarketGovernor(n_agents=30)),
+        ("Free Market", FreeMarketGovernor(n_agents=30)),
         ("Pigouvian", PigouvianGovernor(n_agents=30, delta_drain=0.50, survival_threshold=100.0)),
-        #("Progressive", ProgressiveTaxGovernor(n_agents=30, tax_rate=0.40)),
-        #("Wealth Multiplier", WealthMultiplierGovernor(n_agents=30, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)),
+        ("Progressive", ProgressiveTaxGovernor(n_agents=30, tax_rate=0.40)),
+        ("Wealth Multiplier", WealthMultiplierGovernor(n_agents=30, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)),
     ]
 
-    ppo_results = run_ppo_batch(train_n_trials=1, test_n_trials=1, steps=1000, seeds=SEEDS)
+    ppo_results = run_ppo_batch(train_n_trials=400, test_n_trials=100, steps=500, seeds=SEEDS)
 
     baseline_results = {}
     for name, governor in baseline_definitions:
         baseline_results[name] = run_baseline_batch(
             test_n_trials=100,
-            steps=1000,
+            steps=500,
             seeds=SEEDS,
             governor=governor,
         )
