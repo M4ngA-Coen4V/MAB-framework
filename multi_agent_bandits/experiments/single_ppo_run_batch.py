@@ -272,7 +272,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
 def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000):
     """Build and execute the PPO governor training + evaluation workflow."""
     n_agents = 30
-    master_seed = 400000
+    master_seed = 200000
 
     set_seed(master_seed)
 

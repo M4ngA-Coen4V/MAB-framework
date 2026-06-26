@@ -298,7 +298,7 @@ def plot_critic_performance(critic_loss_data, explained_var_data, save_path=None
     ax2.set_ylabel("Explained Variance", color="tab:blue")
     ax2.tick_params(axis="y", labelcolor="tab:blue")
 
-    fig.tight_layout()
+    ax2.set_ylim(-3, 1)
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         fig.savefig(save_path, dpi=300)
