@@ -70,10 +70,36 @@ def plot_agent_beliefs(runs, save_path=None, title="Socio-Economic Belief Mappin
     averaged_matrix = np.mean(np.stack(class_matrices, axis=0), axis=0)
     n_arms = averaged_matrix.shape[1]
 
+    elite_counts = []
+    struggling_counts = []
+    starved_counts = []
+
+    for trace in runs:
+        death_steps = trace.get("death_steps", [])
+        elite_count = 0
+        struggling_count = 0
+        starved_count = 0
+
+        for death_step in death_steps:
+            if death_step is None:
+                elite_count += 1
+            elif death_step > 150:
+                struggling_count += 1
+            else:
+                starved_count += 1
+
+        elite_counts.append(elite_count)
+        struggling_counts.append(struggling_count)
+        starved_counts.append(starved_count)
+
+    def _format_class_label(name, counts, step_phrase):
+        avg_count = float(np.mean(counts)) if counts else 0.0
+        return f"{name}\n{step_phrase}\nAvg survivors: {avg_count:.1f}"
+
     class_labels = [
-        "Elite Survivors",
-        "Struggling Mid-Class",
-        "Early Starved Class",
+        _format_class_label("Elite Survivors", elite_counts, "Survived through the final step"),
+        _format_class_label("Struggling Mid-Class", struggling_counts, "Survived past step 150"),
+        _format_class_label("Early Starved Class", starved_counts, "Died by step 150"),
     ]
 
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -177,11 +203,17 @@ def plot_resource_efficiency(runs, save_path=None, title="Macroscopic Resource U
         print("No valid resource efficiency traces available to plot.")
         return None
 
-    net_extracted_wealth = np.mean([component["net_extracted_wealth"] for component in components], axis=0)
-    environmental_degradation_loss = np.mean([component["environmental_degradation_loss"] for component in components], axis=0)
-    opportunity_cost_loss = np.mean([component["opportunity_cost_loss"] for component in components], axis=0)
+    net_extracted_wealth, net_extracted_wealth_std = _compute_mean_std(
+        [component["net_extracted_wealth"] for component in components]
+    )
+    environmental_degradation_loss, environmental_degradation_loss_std = _compute_mean_std(
+        [component["environmental_degradation_loss"] for component in components]
+    )
+    opportunity_cost_loss, opportunity_cost_loss_std = _compute_mean_std(
+        [component["opportunity_cost_loss"] for component in components]
+    )
     theoretical_ceiling = np.mean([component["theoretical_ceiling"] for component in components], axis=0)
-    active_population = np.mean([component["active_population"] for component in components], axis=0)
+    active_population, active_population_std = _compute_mean_std([component["active_population"] for component in components])
 
     timesteps = len(net_extracted_wealth)
     steps = np.arange(timesteps) + 1
@@ -200,6 +232,27 @@ def plot_resource_efficiency(runs, save_path=None, title="Macroscopic Resource U
         colors=["#2b8cbe", "#fe9929", "#e34a33"],
         alpha=0.85,
     )
+    ax1.fill_between(
+        steps,
+        np.maximum(0.0, net_extracted_wealth - net_extracted_wealth_std),
+        net_extracted_wealth + net_extracted_wealth_std,
+        color="#2b8cbe",
+        alpha=0.15,
+    )
+    ax1.fill_between(
+        steps,
+        np.maximum(0.0, environmental_degradation_loss - environmental_degradation_loss_std),
+        environmental_degradation_loss + environmental_degradation_loss_std,
+        color="#fe9929",
+        alpha=0.15,
+    )
+    ax1.fill_between(
+        steps,
+        np.maximum(0.0, opportunity_cost_loss - opportunity_cost_loss_std),
+        opportunity_cost_loss + opportunity_cost_loss_std,
+        color="#e34a33",
+        alpha=0.15,
+    )
     ax1.plot(steps, theoretical_ceiling, label="Theoretical Pareto-Optimal Capacity Ceiling", color="black", linestyle="--", linewidth=2.5)
     ax1.set_title(title, fontsize=13, fontweight="bold")
     ax1.set_xlabel("Simulation Timestep", fontsize=11)
@@ -210,6 +263,13 @@ def plot_resource_efficiency(runs, save_path=None, title="Macroscopic Resource U
 
     ax2 = ax1.twinx()
     ax2.plot(steps, active_population, color="#555555", linestyle=":", linewidth=2, label="Active Living Population")
+    ax2.fill_between(
+        steps,
+        np.maximum(0.0, active_population - active_population_std),
+        active_population + active_population_std,
+        color="#555555",
+        alpha=0.12,
+    )
     ax2.set_ylabel("Active Population Count", color="#555555", fontsize=11)
     ax2.set_ylim(0, max(1.0, float(np.max(active_population)) * 1.05))
 
