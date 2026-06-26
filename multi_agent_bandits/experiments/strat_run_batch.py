@@ -122,18 +122,7 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
     for master_seed in seeds:
         set_seed(master_seed)
         # Rebuild a fresh governor instance with seed for each run.
-        if governor_name == "PigouvianGovernor":
-            governor_seeded = PigouvianGovernor(n_agents=n_agents, delta_drain=0.15, survival_threshold=100.0)
-        elif governor_name == "ProgressiveTaxGovernor":
-            governor_seeded = ProgressiveTaxGovernor(n_agents=n_agents, tax_rate=0.40)
-        elif governor_name == "SurvivalTargetedGovernor":
-            governor_seeded = SurvivalTargetedGovernor(n_agents=n_agents, survival_cost=3.0)
-        elif governor_name == "WealthMultiplierGovernor":
-            governor_seeded = WealthMultiplierGovernor(n_agents=n_agents, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)
-        elif governor_name == "WealthEqualizerGovernor":
-            governor_seeded = WealthEqualizerGovernor(n_agents=n_agents, base_tax_rate=0.002, max_tax_rate=0.01, subsidy_scale=0.0)
-        else:
-            governor_seeded = FreeMarketGovernor(n_agents=n_agents)
+        governor_seeded = governor
 
         print(f"🧪 Evaluating {governor_name} with seed {master_seed} over {test_n_trials} trials...")
         metrics = run_phase(governor_seeded, test_n_trials, steps, n_agents, base_seed=master_seed)
