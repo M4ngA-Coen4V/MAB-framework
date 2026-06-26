@@ -218,7 +218,14 @@ def plot_resource_efficiency(runs, save_path=None, title="Macroscopic Resource U
     timesteps = len(net_extracted_wealth)
     steps = np.arange(timesteps) + 1
 
-    fig, ax1 = plt.subplots(figsize=(13, 7))
+    fig, (ax1, ax_std) = plt.subplots(
+        2,
+        1,
+        figsize=(13, 9),
+        sharex=True,
+        gridspec_kw={"height_ratios": [3, 1]},
+    )
+
     ax1.stackplot(
         steps,
         net_extracted_wealth,
@@ -231,27 +238,6 @@ def plot_resource_efficiency(runs, save_path=None, title="Macroscopic Resource U
         ],
         colors=["#2b8cbe", "#fe9929", "#e34a33"],
         alpha=0.85,
-    )
-    ax1.fill_between(
-        steps,
-        np.maximum(0.0, net_extracted_wealth - net_extracted_wealth_std),
-        net_extracted_wealth + net_extracted_wealth_std,
-        color="#2b8cbe",
-        alpha=0.15,
-    )
-    ax1.fill_between(
-        steps,
-        np.maximum(0.0, environmental_degradation_loss - environmental_degradation_loss_std),
-        environmental_degradation_loss + environmental_degradation_loss_std,
-        color="#fe9929",
-        alpha=0.15,
-    )
-    ax1.fill_between(
-        steps,
-        np.maximum(0.0, opportunity_cost_loss - opportunity_cost_loss_std),
-        opportunity_cost_loss + opportunity_cost_loss_std,
-        color="#e34a33",
-        alpha=0.15,
     )
     ax1.plot(steps, theoretical_ceiling, label="Theoretical Pareto-Optimal Capacity Ceiling", color="black", linestyle="--", linewidth=2.5)
     ax1.set_title(title, fontsize=13, fontweight="bold")
@@ -276,6 +262,15 @@ def plot_resource_efficiency(runs, save_path=None, title="Macroscopic Resource U
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2, loc="lower left", fontsize=10, frameon=True, facecolor="white", framealpha=0.9)
+
+    ax_std.plot(steps, net_extracted_wealth_std, color="#2b8cbe", linewidth=2, label="Std Dev: Net System Wealth Extracted")
+    ax_std.plot(steps, environmental_degradation_loss_std, color="#fe9929", linewidth=2, label="Std Dev: Environmental Degradation")
+    ax_std.plot(steps, opportunity_cost_loss_std, color="#e34a33", linewidth=2, label="Std Dev: Opportunity Cost")
+    ax_std.set_title("Component Standard Deviations", fontsize=11, fontweight="bold")
+    ax_std.set_xlabel("Simulation Timestep", fontsize=11)
+    ax_std.set_ylabel("Std Dev", fontsize=11)
+    ax_std.grid(True, linestyle=":", alpha=0.5)
+    ax_std.legend(loc="upper right", fontsize=9, frameon=True, facecolor="white", framealpha=0.9)
 
     fig.tight_layout()
     if save_path:
