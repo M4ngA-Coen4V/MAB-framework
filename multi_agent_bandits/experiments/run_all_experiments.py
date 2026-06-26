@@ -8,20 +8,26 @@ from multi_agent_bandits.core.governor import (
     WealthMultiplierGovernor,
 )
 from multi_agent_bandits.experiments.plotting import (
+    plot_agent_beliefs,
     plot_critic_performance,
     plot_kl_divergence,
     plot_performance_comparison,
     plot_policy_entropy,
+    plot_resource_efficiency,
     plot_strategy_probabilities,
     plot_total_reward_curves,
 )
 from multi_agent_bandits.experiments.ppo_run_batch import run_batch_simulation as run_ppo_batch
 from multi_agent_bandits.experiments.strat_run_batch import run_batch_simulation as run_baseline_batch
 
+
+def _safe_name(name):
+    return name.lower().replace(" ", "_")
+
 SEEDS = [100000, 200000, 300000, 400000, 500000]
 #SEEDS = [123456]
 #RESULTS_DIR = Path("results")
-RESULTS_DIR = Path("results3")
+RESULTS_DIR = Path("results_smoke")
 PLOTS_DIR = RESULTS_DIR / "plots"
 
 
@@ -36,12 +42,12 @@ def main():
         ("Wealth Multiplier", WealthMultiplierGovernor(n_agents=30, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)),
     ]
 
-    ppo_results = run_ppo_batch(train_n_trials=1000, test_n_trials=100, steps=1000, seeds=SEEDS)
+    ppo_results = run_ppo_batch(train_n_trials=50, test_n_trials=10, steps=1000, seeds=SEEDS)
 
     baseline_results = {}
     for name, governor in baseline_definitions:
         baseline_results[name] = run_baseline_batch(
-            test_n_trials=100,
+            test_n_trials=10,
             steps=1000,
             seeds=SEEDS,
             governor=governor,
@@ -87,6 +93,29 @@ def main():
         save_path=str(PLOTS_DIR / "performance_comparison.png"),
     )
     plot_total_reward_curves(ppo_results["training_rewards"], save_path=str(PLOTS_DIR / "learning_curve.png"))
+
+    plot_agent_beliefs(
+        ppo_results["diagnostic_traces"],
+        save_path=str(PLOTS_DIR / "ppo_agent_beliefs.png"),
+        title="PPO Governor: Averaged Agent Beliefs",
+    )
+    plot_resource_efficiency(
+        ppo_results["diagnostic_traces"],
+        save_path=str(PLOTS_DIR / "ppo_resource_efficiency.png"),
+        title="PPO Governor: Averaged Resource Efficiency",
+    )
+
+    for name, _ in baseline_definitions:
+        plot_agent_beliefs(
+            baseline_results[name]["diagnostic_traces"],
+            save_path=str(PLOTS_DIR / f"{_safe_name(name)}_agent_beliefs.png"),
+            title=f"{name}: Averaged Agent Beliefs",
+        )
+        plot_resource_efficiency(
+            baseline_results[name]["diagnostic_traces"],
+            save_path=str(PLOTS_DIR / f"{_safe_name(name)}_resource_efficiency.png"),
+            title=f"{name}: Averaged Resource Efficiency",
+        )
 
     print("\n=== Experiment Summary ===")
     print(f"PPO eval reward: {ppo_results['aggregate']['mean_eval_reward']:.2f} ± {ppo_results['aggregate']['std_eval_reward']:.2f}")

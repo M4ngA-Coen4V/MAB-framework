@@ -20,7 +20,7 @@ from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 
 def run_single_episode_trace(governor, steps, n_agents, seed=42):
-    """Run one evaluation episode and return the strategy probabilities from that episode."""
+    """Run one evaluation episode and return the logs needed for shared visualizations."""
     if hasattr(governor, "reset"):
         governor.reset()
 
@@ -52,7 +52,16 @@ def run_single_episode_trace(governor, steps, n_agents, seed=42):
             pass
         sys.stdout = original_stdout
 
-    return list(getattr(governor, "strategy_prob_history", []))
+    return {
+        "strategy_probabilities": list(getattr(governor, "strategy_prob_history", [])),
+        "choices_log": list(runner.choices_log),
+        "rewards_log": list(runner.rewards_log),
+        "values_log": list(runner.values_log),
+        "death_steps": list(env.death_steps),
+        "environmental_health_history": list(getattr(env, "environmental_health_history", [])),
+        "n_arms": env.n_arms,
+        "arm_means": [arm.mean for arm in env.arms],
+    }
 
 
 def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
@@ -179,7 +188,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
         governor.strategy_prob_history = []
 
         governor.is_evaluating = True
-        single_episode_test_strategy_probs = run_single_episode_trace(
+        single_episode_test_trace = run_single_episode_trace(
             governor,
             steps,
             n_agents,
@@ -195,7 +204,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
             seed=master_seed + 10000,
         )
         governor.is_evaluating = False
-        test_strategy_probs = single_episode_test_strategy_probs
+        test_strategy_probs = single_episode_test_trace["strategy_probabilities"]
         combined_strategy_probs = training_strategy_probs + test_strategy_probs
 
         all_results[master_seed] = {
@@ -205,6 +214,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
             "strategy_probabilities": combined_strategy_probs,
             "training_strategy_probabilities": training_strategy_probs,
             "test_strategy_probabilities": test_strategy_probs,
+            "diagnostic_trace": single_episode_test_trace,
             "critic_loss_history": governor.critic_loss_history,
             "entropy_history": governor.entropy_history,
             "kl_history": governor.kl_history,
@@ -232,6 +242,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
         "strategy_probabilities": all_strategy_probs,
         "training_strategy_probabilities": all_training_strategy_probs,
         "test_strategy_probabilities": all_test_strategy_probs,
+        "diagnostic_traces": [result["diagnostic_trace"] for result in all_results.values()],
         "critic_loss_history": all_critic_loss,
         "entropy_history": all_entropy,
         "kl_history": all_kl,

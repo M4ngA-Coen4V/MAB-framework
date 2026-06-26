@@ -45,6 +45,51 @@ def run_diagnostic_trial(governor, steps, n_agents, seed=42):
 
     print("🎉 Diagnostic trial complete! Check './test_strategy' for charts.")
 
+
+def run_single_episode_trace(governor, steps, n_agents, seed=42):
+    """Run one baseline evaluation episode and return logs for shared visualizations."""
+    if hasattr(governor, "reset"):
+        governor.reset()
+
+    env = DepletingCommonsEnvironment(
+        n_agents=n_agents,
+        death_threshold=0.0,
+        initial_wealth=250.0,
+        step_cost=3.0,
+        governor=governor,
+        seed=seed,
+    )
+
+    agents = [EpsilonGreedyAgent(env.n_arms, seed=seed + i) for i in range(n_agents)]
+    runner = ExperimentRunner(env, agents, timestep_limit=steps, save_dir=None)
+
+    original_stdout = sys.stdout
+    try:
+        sys.stdout = open(os.devnull, "w")
+        runner.run(
+            plot_rewards=False,
+            plot_frequencies=False,
+            plot_beliefs=False,
+            plot_environment_health=False,
+            plot_resource_efficiency=False,
+        )
+    finally:
+        try:
+            sys.stdout.close()
+        except Exception:
+            pass
+        sys.stdout = original_stdout
+
+    return {
+        "choices_log": list(runner.choices_log),
+        "rewards_log": list(runner.rewards_log),
+        "values_log": list(runner.values_log),
+        "death_steps": list(env.death_steps),
+        "environmental_health_history": list(getattr(env, "environmental_health_history", [])),
+        "n_arms": env.n_arms,
+        "arm_means": [arm.mean for arm in env.arms],
+    }
+
 def run_phase(governor, n_trials, steps, n_agents, base_seed=42):
     """Run evaluation-only trials for a fixed, non-learning governor."""
     batch_total_rewards = []
@@ -126,7 +171,8 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
 
         print(f"🧪 Evaluating {governor_name} with seed {master_seed} over {test_n_trials} trials...")
         metrics = run_phase(governor_seeded, test_n_trials, steps, n_agents, base_seed=master_seed)
-        seed_results[master_seed] = metrics
+        diagnostic_trace = run_single_episode_trace(governor_seeded, steps, n_agents, seed=master_seed + 10000)
+        seed_results[master_seed] = {**metrics, "diagnostic_trace": diagnostic_trace}
 
     aggregate = {
         "avg_reward": float(np.mean([result["avg_reward"] for result in seed_results.values()])),
@@ -145,7 +191,11 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
     print(f"| Min Combined System Reward  | {aggregate['min_reward']:.2f} |")
     print("=" * 60)
 
-    return {"seed_results": seed_results, "aggregate": aggregate}
+    return {
+        "seed_results": seed_results,
+        "aggregate": aggregate,
+        "diagnostic_traces": [result["diagnostic_trace"] for result in seed_results.values()],
+    }
 
 
 if __name__ == "__main__":
