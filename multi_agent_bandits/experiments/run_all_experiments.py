@@ -27,7 +27,7 @@ def _safe_name(name):
 SEEDS = [100000, 200000, 300000, 400000, 500000]
 #SEEDS = [123456]
 #RESULTS_DIR = Path("results")
-RESULTS_DIR = Path("results_smoke")
+RESULTS_DIR = Path("results3")
 PLOTS_DIR = RESULTS_DIR / "plots"
 
 
@@ -42,12 +42,12 @@ def main():
         ("Wealth Multiplier", WealthMultiplierGovernor(n_agents=30, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)),
     ]
 
-    ppo_results = run_ppo_batch(train_n_trials=50, test_n_trials=10, steps=1000, seeds=SEEDS)
+    ppo_results = run_ppo_batch(train_n_trials=1, test_n_trials=1, steps=1000, seeds=SEEDS)
 
     baseline_results = {}
     for name, governor in baseline_definitions:
         baseline_results[name] = run_baseline_batch(
-            test_n_trials=10,
+            test_n_trials=100,
             steps=1000,
             seeds=SEEDS,
             governor=governor,

@@ -165,7 +165,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
             n_arms=30,
             decision_interval=10,
             actor_lr=2e-4,
-            critic_lr=5e-5,
+            critic_lr=6e-5,
             clip_epsilon=0.2,
             ppo_epochs=3,
             batch_size=32,

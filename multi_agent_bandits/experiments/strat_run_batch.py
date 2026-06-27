@@ -171,6 +171,7 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
 
         print(f"🧪 Evaluating {governor_name} with seed {master_seed} over {test_n_trials} trials...")
         metrics = run_phase(governor_seeded, test_n_trials, steps, n_agents, base_seed=master_seed)
+        print(f"The average reward is: {metrics['avg_reward']}")
         diagnostic_trace = run_single_episode_trace(governor_seeded, steps, n_agents, seed=master_seed + 10000)
         seed_results[master_seed] = {**metrics, "diagnostic_trace": diagnostic_trace}
 
