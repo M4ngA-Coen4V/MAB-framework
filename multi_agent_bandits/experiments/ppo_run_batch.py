@@ -15,6 +15,7 @@ from multi_agent_bandits.experiments.plotting import (
     plot_strategy_probabilities,
     plot_total_reward_curves,
 )
+from multi_agent_bandits.experiments.thesis_logger import summarize_episode_trace
 from multi_agent_bandits.experiments.seed_manager import generate_seeds, set_seed
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
@@ -23,6 +24,7 @@ def run_single_episode_trace(governor, steps, n_agents, seed=42):
     """Run one evaluation episode and return the logs needed for shared visualizations."""
     if hasattr(governor, "reset"):
         governor.reset()
+    strategy_history_start = len(getattr(governor, "strategy_prob_history", []))
 
     env = DepletingCommonsEnvironment(
         n_agents=n_agents,
@@ -53,7 +55,7 @@ def run_single_episode_trace(governor, steps, n_agents, seed=42):
         sys.stdout = original_stdout
 
     return {
-        "strategy_probabilities": list(getattr(governor, "strategy_prob_history", [])),
+        "strategy_probabilities": list(getattr(governor, "strategy_prob_history", [])[strategy_history_start:]),
         "choices_log": list(runner.choices_log),
         "rewards_log": list(runner.rewards_log),
         "values_log": list(runner.values_log),
@@ -69,6 +71,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
     batch_total_rewards = []
     batch_survival_counts = []
     batch_extinction_steps = []
+    evaluation_episode_summaries = []
     trial_seeds = generate_seeds(seed, n_trials)
 
     original_stdout = sys.stdout
@@ -78,6 +81,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
         trial_seed = trial_seeds[trial]
         if hasattr(governor, "reset"):
             governor.reset()
+        strategy_history_start = len(getattr(governor, "strategy_prob_history", []))
 
         env = DepletingCommonsEnvironment(
             n_agents=n_agents,
@@ -118,6 +122,18 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
             governor.buffer_values.clear()
             governor.buffer_rewards.clear()
 
+        if not is_training:
+            episode_summary = summarize_episode_trace(
+                env=env,
+                runner=runner,
+                strategy_probabilities=list(getattr(governor, "strategy_prob_history", [])[strategy_history_start:]),
+                decision_interval=getattr(governor, "decision_interval", 10),
+                arm_means=[arm.mean for arm in env.arms],
+                seed=trial_seed,
+                phase="testing",
+            )
+            evaluation_episode_summaries.append(episode_summary)
+
         batch_total_rewards.append(float(sum(runner.total_rewards)))
         survivor_count = sum(1 for step in env.death_steps if step is None)
         batch_survival_counts.append(survivor_count)
@@ -138,6 +154,7 @@ def run_phase(governor, n_trials, steps, n_agents, is_training=True, seed=42):
         "extinction_rate": float((len(batch_extinction_steps) / n_trials) * 100),
         "extinction_steps": batch_extinction_steps,
         "reward_history": batch_total_rewards,
+        "evaluation_episode_summaries": evaluation_episode_summaries,
     }
 
 
@@ -214,6 +231,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
             "strategy_probabilities": combined_strategy_probs,
             "training_strategy_probabilities": training_strategy_probs,
             "test_strategy_probabilities": test_strategy_probs,
+            "evaluation_episode_summaries": test_metrics["evaluation_episode_summaries"],
             "diagnostic_trace": single_episode_test_trace,
             "critic_loss_history": governor.critic_loss_history,
             "entropy_history": governor.entropy_history,
@@ -248,6 +266,7 @@ def run_batch_simulation(train_n_trials=100, test_n_trials=100, steps=1000, seed
         "kl_history": all_kl,
         "explained_variance_history": all_explained_var,
         "eval_rewards": all_eval_rewards,
+        "evaluation_episode_summaries": [summary for result in all_results.values() for summary in result.get("evaluation_episode_summaries", [])],
     }
 
 

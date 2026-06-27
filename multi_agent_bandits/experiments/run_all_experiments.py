@@ -19,6 +19,7 @@ from multi_agent_bandits.experiments.plotting import (
 )
 from multi_agent_bandits.experiments.ppo_run_batch import run_batch_simulation as run_ppo_batch
 from multi_agent_bandits.experiments.strat_run_batch import run_batch_simulation as run_baseline_batch
+from multi_agent_bandits.experiments.thesis_logger import write_thesis_report
 
 
 def _safe_name(name):
@@ -27,7 +28,7 @@ def _safe_name(name):
 SEEDS = [100000, 200000, 300000, 400000, 500000]
 #SEEDS = [123456]
 #RESULTS_DIR = Path("results")
-RESULTS_DIR = Path("results3")
+RESULTS_DIR = Path("results5")
 PLOTS_DIR = RESULTS_DIR / "plots"
 
 
@@ -42,7 +43,7 @@ def main():
         ("Wealth Multiplier", WealthMultiplierGovernor(n_agents=30, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)),
     ]
 
-    ppo_results = run_ppo_batch(train_n_trials=1, test_n_trials=1, steps=1000, seeds=SEEDS)
+    ppo_results = run_ppo_batch(train_n_trials=1000, test_n_trials=100, steps=1000, seeds=SEEDS)
 
     baseline_results = {}
     for name, governor in baseline_definitions:
@@ -61,6 +62,15 @@ def main():
 
     with open(RESULTS_DIR / "all_results.json", "w", encoding="utf-8") as handle:
         json.dump(results_payload, handle, indent=2)
+
+    write_thesis_report(
+        results_dir=RESULTS_DIR,
+        ppo_results=ppo_results,
+        baseline_results=baseline_results,
+        seeds=SEEDS,
+        evaluation_episodes_per_seed=100,
+        steps_per_episode=1000,
+    )
 
     plot_critic_performance(
         ppo_results["critic_loss_history"],

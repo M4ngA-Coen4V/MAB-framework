@@ -15,6 +15,7 @@ from multi_agent_bandits.core.governor import (
     WealthMultiplierGovernor,
 )
 from multi_agent_bandits.experiments.seed_manager import generate_seeds, set_seed
+from multi_agent_bandits.experiments.thesis_logger import summarize_episode_trace
 from multi_agent_bandits.strategies.epsilon_greedy import EpsilonGreedyAgent
 
 def run_diagnostic_trial(governor, steps, n_agents, seed=42):
@@ -95,6 +96,7 @@ def run_phase(governor, n_trials, steps, n_agents, base_seed=42):
     batch_total_rewards = []
     batch_survival_counts = []
     batch_extinction_steps = []
+    evaluation_episode_summaries = []
     trial_seeds = generate_seeds(base_seed, n_trials)
 
     original_stdout = sys.stdout
@@ -136,6 +138,17 @@ def run_phase(governor, n_trials, steps, n_agents, base_seed=42):
         survivor_count = sum(1 for step in env.death_steps if step is None)
         batch_survival_counts.append(survivor_count)
 
+        episode_summary = summarize_episode_trace(
+            env=env,
+            runner=runner,
+            strategy_probabilities=[],
+            decision_interval=10,
+            arm_means=[arm.mean for arm in env.arms],
+            seed=trial_seed,
+            phase="testing",
+        )
+        evaluation_episode_summaries.append(episode_summary)
+
         if survivor_count == 0:
             extinction_step = max(step for step in env.death_steps if step is not None)
             batch_extinction_steps.append(extinction_step)
@@ -148,6 +161,7 @@ def run_phase(governor, n_trials, steps, n_agents, base_seed=42):
         "avg_survivors": float(np.mean(batch_survival_counts)),
         "extinction_rate": float((len(batch_extinction_steps) / n_trials) * 100),
         "extinction_steps": batch_extinction_steps,
+        "evaluation_episode_summaries": evaluation_episode_summaries,
     }
 
 
@@ -196,6 +210,7 @@ def run_batch_simulation(test_n_trials=100, steps=1000, seeds=None, governor=Non
         "seed_results": seed_results,
         "aggregate": aggregate,
         "diagnostic_traces": [result["diagnostic_trace"] for result in seed_results.values()],
+        "evaluation_episode_summaries": [summary for result in seed_results.values() for summary in result.get("evaluation_episode_summaries", [])],
     }
 
 
