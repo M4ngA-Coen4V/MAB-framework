@@ -6,6 +6,12 @@ import numpy as np
 
 
 WEALTH_STRATEGY_INDEX = 2
+EARLY_PHASE_MAX_STEP = 60
+EARLY_STARVED_MAX_STEP = 60
+
+TIER_1_ARMS = set(range(0, 5))
+TIER_2_ARMS = set(range(5, 15))
+TIER_3_ARMS = set(range(15, 30))
 
 
 def _safe_mean(values):
@@ -66,6 +72,101 @@ def _extract_final_beliefs(values_log, death_steps):
         else:
             final_beliefs[agent_idx, :] = np.asarray(values_log[last_step_index][agent_idx], dtype=float)
     return final_beliefs
+
+
+def _tier_for_arm(arm_idx):
+    if arm_idx in TIER_1_ARMS:
+        return "tier1"
+    if arm_idx in TIER_2_ARMS:
+        return "tier2"
+    if arm_idx in TIER_3_ARMS:
+        return "tier3"
+    return None
+
+
+def _compute_tier_percentages(choices_log):
+    early_counts = {"tier1": 0, "tier2": 0, "tier3": 0}
+    late_counts = {"tier1": 0, "tier2": 0, "tier3": 0}
+    early_total = 0
+    late_total = 0
+
+    for step_idx, choices in enumerate(choices_log):
+        step_number = step_idx + 1
+        phase_counts = early_counts if step_number <= EARLY_PHASE_MAX_STEP else late_counts
+        is_early = step_number <= EARLY_PHASE_MAX_STEP
+
+        for arm_idx in choices:
+            if arm_idx is None:
+                continue
+            try:
+                arm = int(arm_idx)
+            except Exception:
+                continue
+
+            tier = _tier_for_arm(arm)
+            if tier is None:
+                continue
+
+            phase_counts[tier] += 1
+            if is_early:
+                early_total += 1
+            else:
+                late_total += 1
+
+    def _to_percentages(counts, total):
+        if total <= 0:
+            return {"tier1": float("nan"), "tier2": float("nan"), "tier3": float("nan")}
+        return {
+            "tier1": float(100.0 * counts["tier1"] / total),
+            "tier2": float(100.0 * counts["tier2"] / total),
+            "tier3": float(100.0 * counts["tier3"] / total),
+        }
+
+    return {
+        "early": _to_percentages(early_counts, early_total),
+        "late": _to_percentages(late_counts, late_total),
+        "early_total_pulls": int(early_total),
+        "late_total_pulls": int(late_total),
+    }
+
+
+def _compute_step10_q_correlations(values_log, death_steps, arm_means):
+    if not values_log or not death_steps:
+        return {
+            "elite_r_step10": float("nan"),
+            "starved_r_step10": float("nan"),
+            "alive_agents_at_step10": 0,
+        }
+
+    step10_index = min(9, len(values_log) - 1)
+    q_snapshot = values_log[step10_index]
+    true_means = np.asarray(arm_means, dtype=float)
+
+    elite_corrs = []
+    starved_corrs = []
+    alive_at_step10 = 0
+
+    for agent_idx, death_step in enumerate(death_steps):
+        alive_step10 = death_step is None or death_step > 10
+        if not alive_step10:
+            continue
+        alive_at_step10 += 1
+
+        q_vec = np.asarray(q_snapshot[agent_idx], dtype=float)
+        corr = _safe_corr(q_vec, true_means)
+        if math.isnan(corr):
+            continue
+
+        if death_step is None:
+            elite_corrs.append(corr)
+        if death_step is not None and death_step <= EARLY_STARVED_MAX_STEP:
+            starved_corrs.append(corr)
+
+    return {
+        "elite_r_step10": _safe_mean(elite_corrs),
+        "starved_r_step10": _safe_mean(starved_corrs),
+        "alive_agents_at_step10": int(alive_at_step10),
+    }
 
 
 def summarize_episode_trace(*, env, runner, strategy_probabilities, decision_interval, arm_means, seed=None, phase=None):
@@ -170,6 +271,9 @@ def summarize_episode_trace(*, env, runner, strategy_probabilities, decision_int
     else:
         elite_pearson_corr = float("nan")
 
+    step10_q_corr = _compute_step10_q_correlations(getattr(runner, "values_log", []), death_steps, arm_means)
+    tier_percentages = _compute_tier_percentages(choices_log)
+
     return {
         "seed": seed,
         "phase": phase,
@@ -193,6 +297,10 @@ def summarize_episode_trace(*, env, runner, strategy_probabilities, decision_int
         "mid_class_count": int(len(mid_indices)),
         "early_starved_count": int(len(starved_indices)),
         "elite_pearson_corr": elite_pearson_corr,
+        "elite_r_step10": step10_q_corr["elite_r_step10"],
+        "starved_r_step10": step10_q_corr["starved_r_step10"],
+        "alive_agents_at_step10": step10_q_corr["alive_agents_at_step10"],
+        "tier_pull_percentages": tier_percentages,
         "final_total_reward": float(sum(getattr(runner, "total_rewards", []))),
         "n_agents": int(n_agents),
         "n_arms": int(n_arms),
@@ -253,9 +361,43 @@ def write_thesis_report(*, results_dir, ppo_results, baseline_results, seeds, ev
             }
         return averages
 
+    def _aggregate_tier_selection(episode_summaries):
+        early_t1 = []
+        early_t2 = []
+        early_t3 = []
+        late_t1 = []
+        late_t2 = []
+        late_t3 = []
+        for summary in episode_summaries:
+            tier_data = summary.get("tier_pull_percentages", {})
+            early = tier_data.get("early", {})
+            late = tier_data.get("late", {})
+            early_t1.append(early.get("tier1"))
+            early_t2.append(early.get("tier2"))
+            early_t3.append(early.get("tier3"))
+            late_t1.append(late.get("tier1"))
+            late_t2.append(late.get("tier2"))
+            late_t3.append(late.get("tier3"))
+
+        return {
+            "early_tier1_pct": _safe_mean(early_t1),
+            "early_tier2_pct": _safe_mean(early_t2),
+            "early_tier3_pct": _safe_mean(early_t3),
+            "late_tier1_pct": _safe_mean(late_t1),
+            "late_tier2_pct": _safe_mean(late_t2),
+            "late_tier3_pct": _safe_mean(late_t3),
+        }
+
     ppo_strategy_mean, ppo_strategy_std = _average_strategy_probabilities(ppo_episode_summaries)
     ppo_switch_stats = _average_dict_metrics(ppo_episode_summaries, ["switch_interval", "resource_wealth_at_switch", "surviving_agents_at_switch", "agent_wealth_mean_at_switch", "agent_wealth_variance_at_switch"])
     ppo_mechanism_corr = _average_dict_metrics(ppo_episode_summaries, ["elite_pearson_corr"])
+    ppo_step10_corr = _average_dict_metrics(ppo_episode_summaries, ["elite_r_step10", "starved_r_step10"])
+
+    tier_selection_summary = {
+        "PPO": _aggregate_tier_selection(ppo_episode_summaries),
+        "Free Market": _aggregate_tier_selection(baseline_episode_summaries.get("Free Market", [])),
+        "Progressive": _aggregate_tier_selection(baseline_episode_summaries.get("Progressive", [])),
+    }
 
     rq2_condition_metrics = {}
     for name in ["PPO", "Pigouvian", "Free Market", "Wealth Multiplier", "Progressive"]:
@@ -385,6 +527,13 @@ def write_thesis_report(*, results_dir, ppo_results, baseline_results, seeds, ev
                 "Wealth Multiplier": _average_dict_metrics(baseline_episode_summaries["Wealth Multiplier"], ["elite_pearson_corr"]),
             },
         },
+        "new_survivorship_bias_data": {
+            "ppo_elite_r_step10": ppo_step10_corr["elite_r_step10"]["mean"],
+            "ppo_starved_r_step10": ppo_step10_corr["starved_r_step10"]["mean"],
+            "ppo_elite_r_step10_std": ppo_step10_corr["elite_r_step10"]["std"],
+            "ppo_starved_r_step10_std": ppo_step10_corr["starved_r_step10"]["std"],
+        },
+        "new_arm_selection_data": tier_selection_summary,
     }
 
     json_path = results_dir / "thesis_statistics.json"
@@ -424,6 +573,25 @@ def write_thesis_report(*, results_dir, ppo_results, baseline_results, seeds, ev
     lines.append(f"PPO elite survivor correlation (mean): {ppo_mechanism_corr['elite_pearson_corr']['mean']:.4f}")
     lines.append(f"Pigouvian elite survivor correlation (mean): {_average_dict_metrics(baseline_episode_summaries['Pigouvian'], ['elite_pearson_corr'])['elite_pearson_corr']['mean']:.4f}")
     lines.append(f"Wealth Multiplier elite survivor correlation (mean): {_average_dict_metrics(baseline_episode_summaries['Wealth Multiplier'], ['elite_pearson_corr'])['elite_pearson_corr']['mean']:.4f}")
+    lines.append("")
+    lines.append("## New Survivorship Bias Data (PPO only)")
+    lines.append(f"Elite r at step 10: {ppo_step10_corr['elite_r_step10']['mean']:.4f}")
+    lines.append(f"Starved r at step 10: {ppo_step10_corr['starved_r_step10']['mean']:.4f}")
+    lines.append("")
+    lines.append("## New Arm Selection Data (PPO, Free Market, Progressive)")
+    lines.append(f"PPO Early Tier 1: {tier_selection_summary['PPO']['early_tier1_pct']:.2f}")
+    lines.append(f"PPO Late Tier 1: {tier_selection_summary['PPO']['late_tier1_pct']:.2f}")
+    lines.append(f"PPO Late Tier 2: {tier_selection_summary['PPO']['late_tier2_pct']:.2f}")
+    lines.append(f"PPO Late Tier 3: {tier_selection_summary['PPO']['late_tier3_pct']:.2f}")
+    lines.append("")
+    lines.append(f"Free Market Early Tier 1: {tier_selection_summary['Free Market']['early_tier1_pct']:.2f}")
+    lines.append(f"Free Market Late Tier 1: {tier_selection_summary['Free Market']['late_tier1_pct']:.2f}")
+    lines.append(f"Free Market Late Tier 3: {tier_selection_summary['Free Market']['late_tier3_pct']:.2f}")
+    lines.append("")
+    lines.append(f"Progressive Early Tier 1: {tier_selection_summary['Progressive']['early_tier1_pct']:.2f}")
+    lines.append(f"Progressive Late Tier 1: {tier_selection_summary['Progressive']['late_tier1_pct']:.2f}")
+    lines.append(f"Progressive Late Tier 2: {tier_selection_summary['Progressive']['late_tier2_pct']:.2f}")
+    lines.append(f"Progressive Late Tier 3: {tier_selection_summary['Progressive']['late_tier3_pct']:.2f}")
 
     with open(md_path, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines))

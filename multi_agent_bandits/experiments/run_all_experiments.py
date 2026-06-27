@@ -25,10 +25,10 @@ from multi_agent_bandits.experiments.thesis_logger import write_thesis_report
 def _safe_name(name):
     return name.lower().replace(" ", "_")
 
-SEEDS = [100000, 200000, 300000, 400000, 500000]
+SEEDS = [100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 1100000, 1200000, 1300000, 1400000, 1500000, 1600000, 1700000, 1800000, 1900000, 2000000, 2100000, 2200000, 2300000, 2400000, 2500000, 2600000, 2700000, 2800000, 2900000, 3000000]
 #SEEDS = [123456]
 #RESULTS_DIR = Path("results")
-RESULTS_DIR = Path("results5")
+RESULTS_DIR = Path("results6")
 PLOTS_DIR = RESULTS_DIR / "plots"
 
 
@@ -43,12 +43,12 @@ def main():
         ("Wealth Multiplier", WealthMultiplierGovernor(n_agents=30, base_tax_rate=0.016, max_tax_rate=0.08, subsidy_scale=2.0)),
     ]
 
-    ppo_results = run_ppo_batch(train_n_trials=1000, test_n_trials=100, steps=1000, seeds=SEEDS)
+    ppo_results = run_ppo_batch(train_n_trials=9, test_n_trials=3, steps=1000, seeds=SEEDS)
 
     baseline_results = {}
     for name, governor in baseline_definitions:
         baseline_results[name] = run_baseline_batch(
-            test_n_trials=100,
+            test_n_trials=3,
             steps=1000,
             seeds=SEEDS,
             governor=governor,

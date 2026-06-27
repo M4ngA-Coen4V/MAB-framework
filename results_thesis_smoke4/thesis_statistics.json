@@ -1,0 +1,2087 @@
+{
+  "metadata": {
+    "seeds": [
+      101,
+      202
+    ],
+    "evaluation_episodes_per_seed": 2,
+    "steps_per_episode": 20,
+    "decision_intervals_per_episode": 2
+  },
+  "raw_episode_summaries": {
+    "PPO": [
+      {
+        "seed": 1018545856,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [
+          [
+            0.25940296053886414,
+            0.22771839797496796,
+            0.250442236661911,
+            0.2624364197254181
+          ],
+          [
+            0.25977376103401184,
+            0.2274041324853897,
+            0.25109153985977173,
+            0.2617305517196655
+          ]
+        ],
+        "switch_interval": 1,
+        "switch_step": 10,
+        "resource_wealth_at_switch": 65.22500000000001,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 243.12719580405636,
+        "agent_wealth_variance_at_switch": 371.82889936730396,
+        "net_extracted_wealth_total": 1199.5030310760023,
+        "environmental_degradation_loss_total": 686.545,
+        "opportunity_cost_loss_total": 530.4999999999999,
+        "net_extracted_wealth_mean": 59.97515155380012,
+        "environmental_degradation_loss_mean": 34.32725,
+        "opportunity_cost_loss_mean": 26.524999999999995,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.729234089102031,
+        "elite_r_step10": 0.045702298066746506,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 20.333333333333332,
+            "tier2": 40.166666666666664,
+            "tier3": 39.5
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1199.5030310760023,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1310084793,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [
+          [
+            0.2596500515937805,
+            0.2276269495487213,
+            0.25028762221336365,
+            0.2624354064464569
+          ],
+          [
+            0.25887614488601685,
+            0.22839774191379547,
+            0.2507547438144684,
+            0.2619713246822357
+          ]
+        ],
+        "switch_interval": 1,
+        "switch_step": 10,
+        "resource_wealth_at_switch": 63.575,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 244.9818632851421,
+        "agent_wealth_variance_at_switch": 449.8935756341452,
+        "net_extracted_wealth_total": 1306.0723502478327,
+        "environmental_degradation_loss_total": 611.12,
+        "opportunity_cost_loss_total": 489.2,
+        "net_extracted_wealth_mean": 65.30361751239164,
+        "environmental_degradation_loss_mean": 30.556,
+        "opportunity_cost_loss_mean": 24.46,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.9007250413069655,
+        "elite_r_step10": 0.021937002887139435,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 20.5,
+            "tier2": 38.833333333333336,
+            "tier3": 40.666666666666664
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1306.0723502478324,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1990726487,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [
+          [
+            0.25419139862060547,
+            0.25632554292678833,
+            0.2520464062690735,
+            0.23743660748004913
+          ],
+          [
+            0.2538658678531647,
+            0.2555730938911438,
+            0.2537839412689209,
+            0.23677708208560944
+          ]
+        ],
+        "switch_interval": 1,
+        "switch_step": 10,
+        "resource_wealth_at_switch": 72.705,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 242.56076546531554,
+        "agent_wealth_variance_at_switch": 51.795596793268984,
+        "net_extracted_wealth_total": 1216.7041042475416,
+        "environmental_degradation_loss_total": 543.55,
+        "opportunity_cost_loss_total": 588.0,
+        "net_extracted_wealth_mean": 60.83520521237708,
+        "environmental_degradation_loss_mean": 27.1775,
+        "opportunity_cost_loss_mean": 29.4,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.24841036809622516,
+        "elite_r_step10": 0.016833138377499116,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 23.166666666666668,
+            "tier2": 32.833333333333336,
+            "tier3": 44.0
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1216.7041042475414,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1717738128,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [
+          [
+            0.2533140480518341,
+            0.25604894757270813,
+            0.25405773520469666,
+            0.2365793138742447
+          ],
+          [
+            0.25337398052215576,
+            0.2562915086746216,
+            0.25334131717681885,
+            0.2369931936264038
+          ]
+        ],
+        "switch_interval": 1,
+        "switch_step": 10,
+        "resource_wealth_at_switch": 74.275,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 236.6450555496914,
+        "agent_wealth_variance_at_switch": 8.602376103515887,
+        "net_extracted_wealth_total": 1011.8004523930945,
+        "environmental_degradation_loss_total": 477.35999999999996,
+        "opportunity_cost_loss_total": 819.4000000000001,
+        "net_extracted_wealth_mean": 50.590022619654725,
+        "environmental_degradation_loss_mean": 23.868,
+        "opportunity_cost_loss_mean": 40.970000000000006,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.2501138163552065,
+        "elite_r_step10": -0.031520506195620704,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 10.333333333333334,
+            "tier2": 43.5,
+            "tier3": 46.166666666666664
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1011.8004523930944,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      }
+    ],
+    "Pigouvian": [
+      {
+        "seed": 836464178,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 96.34,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.16960931240914,
+        "agent_wealth_variance_at_switch": 9.307255087214648,
+        "net_extracted_wealth_total": 1196.5948569540326,
+        "environmental_degradation_loss_total": 563.9050000000001,
+        "opportunity_cost_loss_total": 543.1,
+        "net_extracted_wealth_mean": 59.82974284770163,
+        "environmental_degradation_loss_mean": 28.195250000000005,
+        "opportunity_cost_loss_mean": 27.155,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.4990729853423962,
+        "elite_r_step10": 0.047756810225679014,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 18.5,
+            "tier2": 41.166666666666664,
+            "tier3": 40.333333333333336
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1196.5948569540328,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1540496234,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 93.07,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.09097244576338,
+        "agent_wealth_variance_at_switch": 5.6200803934012376,
+        "net_extracted_wealth_total": 1083.2893407482948,
+        "environmental_degradation_loss_total": 610.745,
+        "opportunity_cost_loss_total": 663.9,
+        "net_extracted_wealth_mean": 54.16446703741474,
+        "environmental_degradation_loss_mean": 30.53725,
+        "opportunity_cost_loss_mean": 33.195,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.47123877462436553,
+        "elite_r_step10": 0.0474380470493623,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 24.166666666666668,
+            "tier2": 36.833333333333336,
+            "tier3": 39.0
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1083.2893407482945,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1655880657,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 96.18999999999998,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.29336848345253,
+        "agent_wealth_variance_at_switch": 11.434614082095626,
+        "net_extracted_wealth_total": 1388.3098010079736,
+        "environmental_degradation_loss_total": 650.36,
+        "opportunity_cost_loss_total": 372.40000000000003,
+        "net_extracted_wealth_mean": 69.41549005039869,
+        "environmental_degradation_loss_mean": 32.518,
+        "opportunity_cost_loss_mean": 18.62,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.7475703618149684,
+        "elite_r_step10": 0.06725131863746436,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 22.0,
+            "tier2": 40.5,
+            "tier3": 37.5
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1388.3098010079734,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 2014071574,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 94.52499999999999,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.44597091352787,
+        "agent_wealth_variance_at_switch": 8.137131287886028,
+        "net_extracted_wealth_total": 1306.6411741773827,
+        "environmental_degradation_loss_total": 705.1899999999999,
+        "opportunity_cost_loss_total": 388.29999999999995,
+        "net_extracted_wealth_mean": 65.33205870886914,
+        "environmental_degradation_loss_mean": 35.259499999999996,
+        "opportunity_cost_loss_mean": 19.415,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.5755925309724168,
+        "elite_r_step10": 0.08973581200707317,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 28.666666666666668,
+            "tier2": 41.0,
+            "tier3": 30.333333333333332
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1306.6411741773827,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      }
+    ],
+    "Free Market": [
+      {
+        "seed": 836464178,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 96.34,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.16960931240914,
+        "agent_wealth_variance_at_switch": 9.105050999640616,
+        "net_extracted_wealth_total": 1241.413725938237,
+        "environmental_degradation_loss_total": 547.5849999999999,
+        "opportunity_cost_loss_total": 541.0,
+        "net_extracted_wealth_mean": 62.070686296911845,
+        "environmental_degradation_loss_mean": 27.379249999999995,
+        "opportunity_cost_loss_mean": 27.05,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.4143043383451247,
+        "elite_r_step10": 0.050994576588477954,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 18.666666666666668,
+            "tier2": 42.666666666666664,
+            "tier3": 38.666666666666664
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1241.413725938237,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1540496234,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 93.07,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.09097244576347,
+        "agent_wealth_variance_at_switch": 5.915944964648231,
+        "net_extracted_wealth_total": 1045.5891582713004,
+        "environmental_degradation_loss_total": 633.2500000000001,
+        "opportunity_cost_loss_total": 682.3,
+        "net_extracted_wealth_mean": 52.279457913565025,
+        "environmental_degradation_loss_mean": 31.662500000000005,
+        "opportunity_cost_loss_mean": 34.114999999999995,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.5523291628827146,
+        "elite_r_step10": 0.060185916620977824,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 25.0,
+            "tier2": 40.166666666666664,
+            "tier3": 34.833333333333336
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1045.5891582713004,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1655880657,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 96.18999999999998,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.29336848345255,
+        "agent_wealth_variance_at_switch": 11.037703283930842,
+        "net_extracted_wealth_total": 1369.2153826265062,
+        "environmental_degradation_loss_total": 683.64,
+        "opportunity_cost_loss_total": 365.7,
+        "net_extracted_wealth_mean": 68.4607691313253,
+        "environmental_degradation_loss_mean": 34.182,
+        "opportunity_cost_loss_mean": 18.285,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.7400218960371627,
+        "elite_r_step10": 0.06554722539195305,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 22.666666666666668,
+            "tier2": 41.833333333333336,
+            "tier3": 35.5
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1369.215382626506,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 2014071574,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 94.52499999999999,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.44597091352782,
+        "agent_wealth_variance_at_switch": 8.024885760908994,
+        "net_extracted_wealth_total": 1319.6823809715795,
+        "environmental_degradation_loss_total": 649.0,
+        "opportunity_cost_loss_total": 398.90000000000003,
+        "net_extracted_wealth_mean": 65.98411904857898,
+        "environmental_degradation_loss_mean": 32.45,
+        "opportunity_cost_loss_mean": 19.945,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.7315630466160704,
+        "elite_r_step10": 0.07525149465764751,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 24.0,
+            "tier2": 40.5,
+            "tier3": 35.5
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1319.6823809715793,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      }
+    ],
+    "Wealth Multiplier": [
+      {
+        "seed": 836464178,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 96.34,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.16960931240916,
+        "agent_wealth_variance_at_switch": 230.74762208709652,
+        "net_extracted_wealth_total": 1480.5792616198758,
+        "environmental_degradation_loss_total": 598.0949999999998,
+        "opportunity_cost_loss_total": 460.7,
+        "net_extracted_wealth_mean": 74.02896308099379,
+        "environmental_degradation_loss_mean": 29.90474999999999,
+        "opportunity_cost_loss_mean": 23.035,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.7287871094302724,
+        "elite_r_step10": 0.17264336725476426,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 23.333333333333332,
+            "tier2": 44.333333333333336,
+            "tier3": 32.333333333333336
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1480.5792616198762,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1540496234,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 93.07,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.09097244576344,
+        "agent_wealth_variance_at_switch": 219.59520990938194,
+        "net_extracted_wealth_total": 1207.2019769422498,
+        "environmental_degradation_loss_total": 724.02,
+        "opportunity_cost_loss_total": 557.3000000000001,
+        "net_extracted_wealth_mean": 60.36009884711249,
+        "environmental_degradation_loss_mean": 36.201,
+        "opportunity_cost_loss_mean": 27.865000000000002,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.6182210649549675,
+        "elite_r_step10": 0.15636012721113549,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 29.0,
+            "tier2": 42.0,
+            "tier3": 29.0
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1207.2019769422495,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1655880657,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 96.18999999999998,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.29336848345253,
+        "agent_wealth_variance_at_switch": 176.75706925492074,
+        "net_extracted_wealth_total": 1414.427156815898,
+        "environmental_degradation_loss_total": 791.3299999999999,
+        "opportunity_cost_loss_total": 350.59999999999997,
+        "net_extracted_wealth_mean": 70.7213578407949,
+        "environmental_degradation_loss_mean": 39.5665,
+        "opportunity_cost_loss_mean": 17.529999999999998,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.4659348694297004,
+        "elite_r_step10": 0.11903107827950588,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 29.0,
+            "tier2": 42.666666666666664,
+            "tier3": 28.333333333333332
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1414.4271568158977,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 2014071574,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 94.52499999999999,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.44597091352782,
+        "agent_wealth_variance_at_switch": 169.11634179809303,
+        "net_extracted_wealth_total": 1299.692116018219,
+        "environmental_degradation_loss_total": 785.64,
+        "opportunity_cost_loss_total": 433.3,
+        "net_extracted_wealth_mean": 64.98460580091094,
+        "environmental_degradation_loss_mean": 39.282,
+        "opportunity_cost_loss_mean": 21.665,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.5516945656474838,
+        "elite_r_step10": 0.13416054146604747,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 27.5,
+            "tier2": 39.666666666666664,
+            "tier3": 32.833333333333336
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1299.6921160182187,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      }
+    ],
+    "Progressive": [
+      {
+        "seed": 836464178,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 96.34,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.16960931240914,
+        "agent_wealth_variance_at_switch": 1.4354853312116853,
+        "net_extracted_wealth_total": 1220.4777311926493,
+        "environmental_degradation_loss_total": 450.81500000000005,
+        "opportunity_cost_loss_total": 633.4,
+        "net_extracted_wealth_mean": 61.023886559632466,
+        "environmental_degradation_loss_mean": 22.540750000000003,
+        "opportunity_cost_loss_mean": 31.669999999999998,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": -0.015594592664614097,
+        "elite_r_step10": -0.0238459523339659,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 17.666666666666668,
+            "tier2": 36.333333333333336,
+            "tier3": 46.0
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1220.4777311926491,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1540496234,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 93.07,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.0909724457634,
+        "agent_wealth_variance_at_switch": 1.0378725824477406,
+        "net_extracted_wealth_total": 1052.5172600690805,
+        "environmental_degradation_loss_total": 596.935,
+        "opportunity_cost_loss_total": 676.0,
+        "net_extracted_wealth_mean": 52.62586300345403,
+        "environmental_degradation_loss_mean": 29.846749999999997,
+        "opportunity_cost_loss_mean": 33.8,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.23002061948802363,
+        "elite_r_step10": 0.014491145777848933,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 20.333333333333332,
+            "tier2": 35.5,
+            "tier3": 44.166666666666664
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1052.5172600690805,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 1655880657,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 96.18999999999998,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.29336848345258,
+        "agent_wealth_variance_at_switch": 2.0435103172788285,
+        "net_extracted_wealth_total": 1355.0012838436514,
+        "environmental_degradation_loss_total": 590.2749999999999,
+        "opportunity_cost_loss_total": 431.9,
+        "net_extracted_wealth_mean": 67.75006419218258,
+        "environmental_degradation_loss_mean": 29.513749999999995,
+        "opportunity_cost_loss_mean": 21.595,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.30711058801881475,
+        "elite_r_step10": 0.010533521116894456,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 22.333333333333332,
+            "tier2": 34.0,
+            "tier3": 43.666666666666664
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1355.0012838436514,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      },
+      {
+        "seed": 2014071574,
+        "phase": "testing",
+        "decision_interval": 10,
+        "episode_steps": 20,
+        "strategy_probabilities": [],
+        "switch_interval": 0,
+        "switch_step": 1,
+        "resource_wealth_at_switch": 94.52499999999999,
+        "surviving_agents_at_switch": 30,
+        "agent_wealth_mean_at_switch": 250.44597091352787,
+        "agent_wealth_variance_at_switch": 1.119500494232794,
+        "net_extracted_wealth_total": 1277.9589498090304,
+        "environmental_degradation_loss_total": 547.86,
+        "opportunity_cost_loss_total": 487.59999999999997,
+        "net_extracted_wealth_mean": 63.89794749045152,
+        "environmental_degradation_loss_mean": 27.393,
+        "opportunity_cost_loss_mean": 24.38,
+        "mean_active_population": 30.0,
+        "elite_survivors_count": 30,
+        "mid_class_count": 0,
+        "early_starved_count": 0,
+        "elite_pearson_corr": 0.33152476957044763,
+        "elite_r_step10": 0.020321042882981147,
+        "starved_r_step10": NaN,
+        "alive_agents_at_step10": 30,
+        "tier_pull_percentages": {
+          "early": {
+            "tier1": 21.0,
+            "tier2": 32.333333333333336,
+            "tier3": 46.666666666666664
+          },
+          "late": {
+            "tier1": NaN,
+            "tier2": NaN,
+            "tier3": NaN
+          },
+          "early_total_pulls": 600,
+          "late_total_pulls": 0
+        },
+        "final_total_reward": 1277.9589498090302,
+        "n_agents": 30,
+        "n_arms": 30,
+        "arm_means": [
+          10.0,
+          9.0,
+          8.2,
+          7.5,
+          6.8,
+          5.5,
+          5.0,
+          4.6,
+          4.2,
+          3.9,
+          3.6,
+          3.3,
+          3.0,
+          2.8,
+          2.6,
+          2.0,
+          1.9,
+          1.8,
+          1.7,
+          1.6,
+          1.5,
+          1.4,
+          1.3,
+          1.2,
+          1.1,
+          1.0,
+          0.9,
+          0.8,
+          0.7,
+          0.5
+        ]
+      }
+    ]
+  },
+  "rq1": {
+    "strategy_probabilities_mean": [
+      [
+        0.25663961470127106,
+        0.24192995950579643,
+        0.2517085000872612,
+        0.2497219368815422
+      ],
+      [
+        0.2564724385738373,
+        0.24191661924123764,
+        0.25224288552999496,
+        0.24936803802847862
+      ]
+    ],
+    "strategy_probabilities_std": [
+      [
+        0.0029048221124279663,
+        0.014257657776095672,
+        0.0015211347096501808,
+        0.012717588611646891
+      ],
+      [
+        0.0028753776813299956,
+        0.01402238444522395,
+        0.0013343132588576204,
+        0.012483424257514348
+      ]
+    ],
+    "average_switch_interval": 1.0,
+    "switch_interval_std": 0.0,
+    "switch_statistics": {
+      "switch_interval": {
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "resource_wealth_at_switch": {
+        "mean": 68.945,
+        "std": 4.615782707190622
+      },
+      "surviving_agents_at_switch": {
+        "mean": 30.0,
+        "std": 0.0
+      },
+      "agent_wealth_mean_at_switch": {
+        "mean": 241.82872002605134,
+        "std": 3.1238845884186754
+      },
+      "agent_wealth_variance_at_switch": {
+        "mean": 220.53011197455848,
+        "std": 192.9272034818632
+      }
+    },
+    "environment_state_at_switch": {
+      "resource_wealth_at_switch": {
+        "mean": 68.945,
+        "std": 4.615782707190622
+      },
+      "surviving_agents_at_switch": {
+        "mean": 30.0,
+        "std": 0.0
+      },
+      "agent_wealth_mean_at_switch": {
+        "mean": 241.82872002605134,
+        "std": 3.1238845884186754
+      },
+      "agent_wealth_variance_at_switch": {
+        "mean": 220.53011197455848,
+        "std": 192.9272034818632
+      }
+    }
+  },
+  "rq2": {
+    "per_seed_rewards": {
+      "PPO": [
+        1252.7876906619174,
+        1114.2522783203178
+      ],
+      "Pigouvian": [
+        1139.9420988511638,
+        1347.475487592678
+      ],
+      "Free Market": [
+        1143.5014421047686,
+        1344.4488817990427
+      ],
+      "Wealth Multiplier": [
+        1343.8906192810628,
+        1357.0596364170583
+      ],
+      "Progressive": [
+        1136.4974956308647,
+        1316.4801168263407
+      ]
+    },
+    "per_seed_reward_arrays": {
+      "PPO": [
+        1252.7876906619174,
+        1114.2522783203178
+      ],
+      "Pigouvian": [
+        1139.9420988511638,
+        1347.475487592678
+      ],
+      "Free Market": [
+        1143.5014421047686,
+        1344.4488817990427
+      ],
+      "Wealth Multiplier": [
+        1343.8906192810628,
+        1357.0596364170583
+      ],
+      "Progressive": [
+        1136.4974956308647,
+        1316.4801168263407
+      ]
+    },
+    "conditions": {
+      "PPO": {
+        "seed_rewards": [
+          1252.7876906619174,
+          1114.2522783203178
+        ],
+        "reward_mean": 1183.5199844911176,
+        "reward_std": 69.26770617079978,
+        "net_extracted_wealth_mean": 59.17599922455589,
+        "environmental_degradation_loss_mean": 28.9821875,
+        "opportunity_cost_loss_mean": 30.338749999999997,
+        "elite_survivors_mean": 30.0,
+        "mid_class_mean": 0.0,
+        "early_starved_mean": 0.0
+      },
+      "Pigouvian": {
+        "seed_rewards": [
+          1139.9420988511638,
+          1347.475487592678
+        ],
+        "reward_mean": 1243.708793221921,
+        "reward_std": 103.76669437075714,
+        "net_extracted_wealth_mean": 62.18543966109605,
+        "environmental_degradation_loss_mean": 31.627499999999998,
+        "opportunity_cost_loss_mean": 24.596249999999998,
+        "elite_survivors_mean": 30.0,
+        "mid_class_mean": 0.0,
+        "early_starved_mean": 0.0
+      },
+      "Free Market": {
+        "seed_rewards": [
+          1143.5014421047686,
+          1344.4488817990427
+        ],
+        "reward_mean": 1243.9751619519056,
+        "reward_std": 100.47371984713709,
+        "net_extracted_wealth_mean": 62.19875809759529,
+        "environmental_degradation_loss_mean": 31.4184375,
+        "opportunity_cost_loss_mean": 24.848749999999995,
+        "elite_survivors_mean": 30.0,
+        "mid_class_mean": 0.0,
+        "early_starved_mean": 0.0
+      },
+      "Wealth Multiplier": {
+        "seed_rewards": [
+          1343.8906192810628,
+          1357.0596364170583
+        ],
+        "reward_mean": 1350.4751278490605,
+        "reward_std": 6.584508567997773,
+        "net_extracted_wealth_mean": 67.52375639245304,
+        "environmental_degradation_loss_mean": 36.2385625,
+        "opportunity_cost_loss_mean": 22.52375,
+        "elite_survivors_mean": 30.0,
+        "mid_class_mean": 0.0,
+        "early_starved_mean": 0.0
+      },
+      "Progressive": {
+        "seed_rewards": [
+          1136.4974956308647,
+          1316.4801168263407
+        ],
+        "reward_mean": 1226.4888062286027,
+        "reward_std": 89.99131059773799,
+        "net_extracted_wealth_mean": 61.324440311430145,
+        "environmental_degradation_loss_mean": 27.3235625,
+        "opportunity_cost_loss_mean": 27.86125,
+        "elite_survivors_mean": 30.0,
+        "mid_class_mean": 0.0,
+        "early_starved_mean": 0.0
+      }
+    },
+    "theoretical_episode_ceiling": 1988.0,
+    "reward_unit_explanation": "Episode rewards are summed across all agents and all 1000 steps; the per-step resource ceiling is the sum of arm means, so the comparable episode ceiling is sum(arm means) * 1000."
+  },
+  "rq3": {
+    "ppo_training_curves": {
+      "mean_eval_reward": 1183.5199844911176,
+      "std_eval_reward": 69.26770617079978,
+      "critic_loss_history": {
+        "mean": [
+          0.12973900139331818
+        ],
+        "std": [
+          0.024692957599957786
+        ]
+      },
+      "entropy_history": {
+        "mean": [
+          1.385273238023122
+        ],
+        "std": [
+          0.0005072951316833496
+        ]
+      },
+      "kl_history": {
+        "mean": [
+          4.460278434000505e-06
+        ],
+        "std": [
+          2.4161806019643945e-06
+        ]
+      },
+      "explained_variance_history": {
+        "mean": [
+          0.0129164457321167
+        ],
+        "std": [
+          0.011093080043792725
+        ]
+      }
+    },
+    "raw_seed_histories": {
+      "training_rewards": [
+        [
+          1284.6014543148021
+        ],
+        [
+          1362.9043216674493
+        ]
+      ],
+      "strategy_probabilities": [
+        [
+          [
+            0.2609312832355499,
+            0.2273930311203003,
+            0.2511592209339142,
+            0.2605164647102356
+          ],
+          [
+            0.26030370593070984,
+            0.2271469086408615,
+            0.25178274512290955,
+            0.2607666552066803
+          ],
+          [
+            0.2585349678993225,
+            0.2275613397359848,
+            0.25065651535987854,
+            0.26324713230133057
+          ],
+          [
+            0.2594417929649353,
+            0.22793513536453247,
+            0.2503953278064728,
+            0.26222774386405945
+          ]
+        ],
+        [
+          [
+            0.2521808445453644,
+            0.25921082496643066,
+            0.25170713663101196,
+            0.2369011640548706
+          ],
+          [
+            0.2523289918899536,
+            0.259027898311615,
+            0.25222712755203247,
+            0.2364160120487213
+          ],
+          [
+            0.25424692034721375,
+            0.25570669770240784,
+            0.2532089054584503,
+            0.2368374466896057
+          ],
+          [
+            0.254307359457016,
+            0.25532984733581543,
+            0.2530035376548767,
+            0.2373591959476471
+          ]
+        ]
+      ],
+      "training_strategy_probabilities": [
+        [
+          [
+            0.2609312832355499,
+            0.2273930311203003,
+            0.2511592209339142,
+            0.2605164647102356
+          ],
+          [
+            0.26030370593070984,
+            0.2271469086408615,
+            0.25178274512290955,
+            0.2607666552066803
+          ]
+        ],
+        [
+          [
+            0.2521808445453644,
+            0.25921082496643066,
+            0.25170713663101196,
+            0.2369011640548706
+          ],
+          [
+            0.2523289918899536,
+            0.259027898311615,
+            0.25222712755203247,
+            0.2364160120487213
+          ]
+        ]
+      ],
+      "test_strategy_probabilities": [
+        [
+          [
+            0.2585349678993225,
+            0.2275613397359848,
+            0.25065651535987854,
+            0.26324713230133057
+          ],
+          [
+            0.2594417929649353,
+            0.22793513536453247,
+            0.2503953278064728,
+            0.26222774386405945
+          ]
+        ],
+        [
+          [
+            0.25424692034721375,
+            0.25570669770240784,
+            0.2532089054584503,
+            0.2368374466896057
+          ],
+          [
+            0.254307359457016,
+            0.25532984733581543,
+            0.2530035376548767,
+            0.2373591959476471
+          ]
+        ]
+      ],
+      "critic_loss_history": [
+        [
+          0.15443195899327597
+        ],
+        [
+          0.1050460437933604
+        ]
+      ],
+      "entropy_history": [
+        [
+          1.3847659428914387
+        ],
+        [
+          1.3857805331548054
+        ]
+      ],
+      "kl_history": [
+        [
+          2.0440978320361105e-06
+        ],
+        [
+          6.876459035964899e-06
+        ]
+      ],
+      "explained_variance_history": [
+        [
+          0.0018233656883239746
+        ],
+        [
+          0.024009525775909424
+        ]
+      ]
+    },
+    "checkpoint_summary": {
+      "reward": [
+        1323.7528879911256,
+        1323.7528879911256,
+        1323.7528879911256
+      ],
+      "critic_loss": [
+        0.12973900139331818,
+        0.12973900139331818,
+        0.12973900139331818
+      ],
+      "explained_variance": [
+        0.0129164457321167,
+        0.0129164457321167,
+        0.0129164457321167
+      ],
+      "entropy": [
+        1.385273238023122,
+        1.385273238023122,
+        1.385273238023122
+      ],
+      "kl_divergence": [
+        4.460278434000505e-06,
+        4.460278434000505e-06,
+        4.460278434000505e-06
+      ]
+    },
+    "seed_rewards": [
+      1252.7876906619174,
+      1114.2522783203178
+    ],
+    "all_seeds_above_49000": false
+  },
+  "mechanism": {
+    "elite_survivor_correlations": {
+      "PPO": [
+        0.729234089102031,
+        0.9007250413069655,
+        0.24841036809622516,
+        0.2501138163552065
+      ],
+      "Pigouvian": [
+        0.4990729853423962,
+        0.47123877462436553,
+        0.7475703618149684,
+        0.5755925309724168
+      ],
+      "Wealth Multiplier": [
+        0.7287871094302724,
+        0.6182210649549675,
+        0.4659348694297004,
+        0.5516945656474838
+      ]
+    },
+    "elite_survivor_correlation_summary": {
+      "PPO": {
+        "elite_pearson_corr": {
+          "mean": 0.532120828715107,
+          "std": 0.28928458455540046
+        }
+      },
+      "Pigouvian": {
+        "elite_pearson_corr": {
+          "mean": 0.5733686631885366,
+          "std": 0.10758896234860924
+        }
+      },
+      "Wealth Multiplier": {
+        "elite_pearson_corr": {
+          "mean": 0.591159402365606,
+          "std": 0.09606296934847192
+        }
+      }
+    }
+  },
+  "new_survivorship_bias_data": {
+    "ppo_elite_r_step10": 0.013237983283941088,
+    "ppo_starved_r_step10": NaN,
+    "ppo_elite_r_step10_std": 0.028043948531780827,
+    "ppo_starved_r_step10_std": NaN
+  },
+  "new_arm_selection_data": {
+    "PPO": {
+      "early_tier1_pct": 18.583333333333332,
+      "early_tier2_pct": 38.833333333333336,
+      "early_tier3_pct": 42.58333333333333,
+      "late_tier1_pct": NaN,
+      "late_tier2_pct": NaN,
+      "late_tier3_pct": NaN
+    },
+    "Free Market": {
+      "early_tier1_pct": 22.583333333333336,
+      "early_tier2_pct": 41.291666666666664,
+      "early_tier3_pct": 36.125,
+      "late_tier1_pct": NaN,
+      "late_tier2_pct": NaN,
+      "late_tier3_pct": NaN
+    },
+    "Progressive": {
+      "early_tier1_pct": 20.333333333333332,
+      "early_tier2_pct": 34.54166666666667,
+      "early_tier3_pct": 45.12499999999999,
+      "late_tier1_pct": NaN,
+      "late_tier2_pct": NaN,
+      "late_tier3_pct": NaN
+    }
+  }
+}
