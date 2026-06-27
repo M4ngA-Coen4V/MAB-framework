@@ -60,8 +60,8 @@ def main():
         "baseline": baseline_results,
     }
 
-    with open(RESULTS_DIR / "all_results.json", "w", encoding="utf-8") as handle:
-        json.dump(results_payload, handle, indent=2)
+    #with open(RESULTS_DIR / "all_results.json", "w", encoding="utf-8") as handle:
+    #    json.dump(results_payload, handle, indent=2)
 
     write_thesis_report(
         results_dir=RESULTS_DIR,
@@ -133,7 +133,7 @@ def main():
         print(
             f"{name} eval reward: {baseline_results[name]['aggregate']['avg_reward']:.2f} ± {baseline_results[name]['aggregate']['std_reward']:.2f}"
         )
-    print(f"Saved results -> {RESULTS_DIR / 'all_results.json'}")
+    #print(f"Saved results -> {RESULTS_DIR / 'all_results.json'}")
     print(f"Saved plots -> {PLOTS_DIR}")
 
 
